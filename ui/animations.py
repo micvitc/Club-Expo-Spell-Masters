@@ -65,6 +65,16 @@ class AnimationEffects:
         if self.flash_time > 0:
             self.flash_time -= dt
 
+        # Spawn ambient magical embers drifting in the arena (purely visual)
+        if random.random() < 0.08:
+            px = random.uniform(0, 960)
+            py = SCREEN_HEIGHT + 10
+            vx = random.uniform(-0.6, 0.6)
+            vy = random.uniform(-0.8, -2.2)
+            c = random.choice([Colors.WIZARD_COLOR, Colors.GOLD, Colors.FIRE, Colors.ICE])
+            size = random.uniform(1.5, 4.0)
+            self.particles.append(Particle(px, py, vx, vy, c, size, lifetime=random.uniform(100.0, 200.0), shrink=True))
+
         # Update Particles
         for p in self.particles[:]:
             p.update(dt)

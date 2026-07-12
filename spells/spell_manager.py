@@ -1,17 +1,22 @@
 import pygame
-from spells.spell import FireSpell, IceSpell, LightningSpell, WindSpell
+import math
+from spells.spell import FireSpell, IceSpell, LightningSpell, WindSpell, ShieldSpell, EarthquakeSpell, ShadowSpell, SolarBeamSpell
 from utils.constants import Colors
 
 class SpellManager:
     def __init__(self, asset_manager):
         self.asset_manager = asset_manager
         
-        # Load all spell modules
+        # Load all 8 spell modules
         self.spells = {
             "fire": FireSpell(),
             "ice": IceSpell(),
             "lightning": LightningSpell(),
-            "wind": WindSpell()
+            "wind": WindSpell(),
+            "shield": ShieldSpell(),
+            "earthquake": EarthquakeSpell(),
+            "shadow": ShadowSpell(),
+            "solarbeam": SolarBeamSpell()
         }
 
     def update(self, dt):
@@ -21,7 +26,7 @@ class SpellManager:
 
     def cast(self, spell_name, player, enemies, projectiles, animation_effects):
         """
-        Attempts to cast a spell. Targets the enemy closest to the player (leftmost).
+        Attempts to cast a spell. Targets the enemy closest to the player (in 2D space).
         Returns True if casting was successful, False otherwise.
         """
         spell_name = spell_name.lower().strip()
@@ -45,8 +50,7 @@ class SpellManager:
             )
             return False
 
-        # Find target: nearest living enemy (leftmost, closest to player.x)
-        # Enemies walk from right to left, so the smallest x value that is greater than player's coordinate is closest
+        # Find target: nearest living enemy (closest 2D Euclidean distance to player)
         target = None
         closest_dist = float('inf')
         
@@ -54,19 +58,31 @@ class SpellManager:
         alive_enemies = [e for e in enemies if hasattr(e, 'hp') and e.hp > 0]
         
         for enemy in alive_enemies:
-            # We want the enemy closest to the player on the x-axis
-            dist = enemy.x - player.x
-            # The enemy must be in front of the player (dist > 0)
-            if 0 < dist < closest_dist:
+            # We want the enemy closest in 2D Euclidean distance
+            dist = math.hypot(enemy.x - player.x, enemy.y - player.y)
+            if dist < closest_dist:
                 closest_dist = dist
                 target = enemy
                 
+        # Spells like shield and earthquake do not require a target to be present
+        needs_target = spell_name not in ["shield", "earthquake"]
+        if needs_target and not target:
+            animation_effects.add_floating_text(
+                "No Target!", 
+                player.x, player.y - 40, 
+                Colors.TEXT_MUTED, 
+                self.asset_manager.get_font(None, 24), 
+                is_damage=False
+            )
+            return False
+
         # Attempt to cast the spell
-        success = spell.cast(player, target, projectiles, animation_effects)
+        success = spell.cast(player, target, projectiles, animation_effects, enemies)
         
         if success:
-            # Trigger player casting animation state
-            player.start_cast(spell_name)
+            # Trigger player casting animation state, aiming towards target if present
+            target_pos = (target.x, target.y) if target else None
+            player.start_cast(spell_name, target_pos)
             
         return success
         
@@ -76,3 +92,4 @@ class SpellManager:
         if spell and spell.cooldown > 0:
             return spell.cooldown_timer / spell.cooldown
         return 0.0
+

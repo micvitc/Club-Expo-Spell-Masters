@@ -40,8 +40,8 @@ class WaveManager:
         self.spawn_queue = self.generate_wave_enemies(self.current_wave)
         self.total_wave_enemies = len(self.spawn_queue)
         
-        # Set spawn interval based on wave (spawns faster in later waves)
-        self.spawn_interval = max(0.8, 2.2 - (self.current_wave * 0.15))
+        # Less frequent spawns each round (higher waves = longer interval, e.g. 4.0s, 4.5s...)
+        self.spawn_interval = 3.5 + (self.current_wave * 0.5)
         self.spawn_timer = 0.5  # First spawn quickly after wave starts
 
     def generate_wave_enemies(self, wave_num):
@@ -50,21 +50,21 @@ class WaveManager:
         """
         queue = []
         if wave_num == 1:
-            # 5 Goblins
-            queue = ["goblin"] * 5
+            # 3 Goblins
+            queue = ["goblin"] * 3
         elif wave_num == 2:
-            # 6 Goblins, 3 Skeletons
-            queue = ["goblin"] * 5 + ["skeleton"] * 3
+            # 4 Goblins, 2 Skeletons
+            queue = ["goblin"] * 4 + ["skeleton"] * 2
             random.shuffle(queue)
         elif wave_num == 3:
-            # 6 Goblins, 4 Skeletons, 2 Orcs
-            queue = ["goblin"] * 6 + ["skeleton"] * 4 + ["orc"] * 2
+            # 5 Goblins, 3 Skeletons, 1 Orc
+            queue = ["goblin"] * 5 + ["skeleton"] * 3 + ["orc"] * 1
             random.shuffle(queue)
         else:
-            # Dynamic scaling for endless mode
-            goblin_count = 5 + wave_num
-            skeleton_count = wave_num * 2
-            orc_count = max(1, wave_num - 2) * 2
+            # Dynamic gentle scaling for endless mode
+            goblin_count = 3 + wave_num // 2
+            skeleton_count = wave_num
+            orc_count = max(0, wave_num - 2)
             
             queue = (
                 ["goblin"] * goblin_count + 
