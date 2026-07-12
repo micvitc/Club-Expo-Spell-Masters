@@ -15,10 +15,22 @@ class Game:
     def __init__(self):
         pygame.init()
         
+        # Create virtual canvas (always 1280x720)
+        self.canvas = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        
         # Default to Fullscreen with windowed fallback
         self.is_fullscreen = True
         try:
-            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.DOUBLEBUF)
+            # Query native desktop resolution to run native fullscreen
+            info = pygame.display.Info()
+            self.desktop_width = info.current_w
+            self.desktop_height = info.current_h
+            
+            # Start in native fullscreen
+            self.screen = pygame.display.set_mode(
+                (self.desktop_width, self.desktop_height), 
+                pygame.FULLSCREEN | pygame.DOUBLEBUF
+            )
         except pygame.error:
             self.is_fullscreen = False
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -68,16 +80,51 @@ class Game:
         self.is_fullscreen = not self.is_fullscreen
         if self.is_fullscreen:
             try:
-                self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.DOUBLEBUF)
+                info = pygame.display.Info()
+                self.screen = pygame.display.set_mode(
+                    (info.current_w, info.current_h), 
+                    pygame.FULLSCREEN | pygame.DOUBLEBUF
+                )
             except pygame.error:
                 self.is_fullscreen = False
                 self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         else:
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+    def get_canvas_mouse_pos(self):
+        """Maps raw screen mouse coordinates back to the 1280x720 virtual canvas space."""
+        mx, my = pygame.mouse.get_pos()
+        screen_w, screen_h = self.screen.get_size()
+        
+        canvas_aspect = SCREEN_WIDTH / SCREEN_HEIGHT
+        screen_aspect = screen_w / screen_h
+        
+        if screen_aspect > canvas_aspect:
+            # Pillarboxing
+            scale_factor = screen_h / SCREEN_HEIGHT
+            offset_x = (screen_w - SCREEN_WIDTH * scale_factor) / 2
+            offset_y = 0
+        else:
+            # Letterboxing
+            scale_factor = screen_w / SCREEN_WIDTH
+            offset_x = 0
+            offset_y = (screen_h - SCREEN_HEIGHT * scale_factor) / 2
+            
+        canvas_x = (mx - offset_x) / scale_factor
+        canvas_y = (my - offset_y) / scale_factor
+        
+        # Clamp to canvas boundaries
+        canvas_x = max(0, min(SCREEN_WIDTH - 1, canvas_x))
+        canvas_y = max(0, min(SCREEN_HEIGHT - 1, canvas_y))
+        
+        return int(canvas_x), int(canvas_y)
+
     def start_game(self):
         self.reset_game()
         self.state = GameState.PLAYING
+
+    def start_demo(self):
+        self.state = GameState.DEMO_MODE
 
     def resume_game(self):
         self.state = GameState.PLAYING
@@ -107,19 +154,19 @@ class Game:
                 break
 
     def handle_events(self):
-        mouse_pos = pygame.mouse.get_pos()
+        mouse_pos = self.get_canvas_mouse_pos()
         self.menu_manager.update(self.state, mouse_pos)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
                 
-            # Handle menu clicks
-            if self.state in [GameState.MAIN_MENU, GameState.PAUSED, GameState.GAME_OVER]:
+            # Handle menu clicks (include DEMO_MODE for EXIT PRACTICE button clicks)
+            if self.state in [GameState.MAIN_MENU, GameState.PAUSED, GameState.GAME_OVER, GameState.DEMO_MODE]:
                 self.menu_manager.handle_event(self.state, event)
                 
             # Play mode inputs
-            elif self.state == GameState.PLAYING:
+            if self.state == GameState.PLAYING:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.pause_game()
@@ -135,18 +182,48 @@ class Game:
                         self.cast_spell("lightning")
                     elif event.key == pygame.K_4:
                         self.cast_spell("wind")
+                    elif event.key == pygame.K_5:
+                        self.cast_spell("shield")
+                    elif event.key == pygame.K_6:
+                        self.cast_spell("earthquake")
+                    elif event.key == pygame.K_7:
+                        self.cast_spell("shadow")
+                    elif event.key == pygame.K_8:
+                        self.cast_spell("solarbeam")
             
-            # Universal keypresses
+            # Universal keypresses for starting or toggling fullscreen
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_f or event.key == pygame.K_F11:
                     self.toggle_fullscreen()
+                elif event.key == pygame.K_SPACE or event.key == pygame.K_s or event.key == pygame.K_RETURN:
+                    # Simulate start gesture
+                    self.cast_spell("start")
 
     def process_spell_queue(self):
         """Processes queued CV spell casts on the main game thread."""
         while not self.spell_queue.empty():
             try:
                 spell_name = self.spell_queue.get_nowait()
-                if self.state == GameState.PLAYING:
+                spell_name = spell_name.lower().strip()
+                
+                if spell_name == "start":
+                    # Start gesture: starts or resumes the game depending on state
+                    if self.state == GameState.MAIN_MENU:
+                        self.start_game()
+                        # Add a quick visual feedback floating text
+                        self.animation_effects.add_floating_text(
+                            "GAME START!", 
+                            SCREEN_WIDTH // 2 - 50, SCREEN_HEIGHT // 2, 
+                            Colors.GOLD, 
+                            self.asset_manager.get_font(None, 36),
+                            duration=1.5,
+                            is_damage=False
+                        )
+                    elif self.state == GameState.PAUSED:
+                        self.resume_game()
+                    elif self.state == GameState.GAME_OVER:
+                        self.restart_game()
+                elif self.state == GameState.PLAYING or self.state == GameState.DEMO_MODE:
                     self.spell_manager.cast(
                         spell_name, 
                         self.player, 
@@ -160,17 +237,19 @@ class Game:
     def update(self, dt):
         self.animation_effects.update(dt)
         
-        if self.state == GameState.PLAYING:
-            # 1. Process CV Spells
-            self.process_spell_queue()
-            
-            # 2. Update entities & spell cooldowns
+        # Process queue in all states (so start gesture works in menus)
+        self.process_spell_queue()
+        
+        if self.state == GameState.PLAYING or self.state == GameState.DEMO_MODE:
+            # Update entities & spell cooldowns
             self.player.update(dt)
             self.spell_manager.update(dt)  # Updates spell cooldown timers
             self.enemy_manager.update(dt, self.player, self.animation_effects)
-            self.wave_manager.update(dt, self.player, self.animation_effects)
             
-            # 3. Update projectiles
+            if self.state == GameState.PLAYING:
+                self.wave_manager.update(dt, self.player, self.animation_effects)
+            
+            # Update projectiles
             for proj in self.projectiles[:]:
                 proj.update(dt)
                 if not proj.alive:
@@ -186,7 +265,7 @@ class Game:
                         )
                     self.projectiles.remove(proj)
                     
-            # 4. Check for GameOver (Wizard HP <= 0)
+            # Check for GameOver (Wizard HP <= 0)
             if self.player.hp <= 0:
                 self.state = GameState.GAME_OVER
 
@@ -200,7 +279,7 @@ class Game:
         # 1. Draw background
         game_surf.blit(self.background, (0, 0))
         
-        if self.state in [GameState.PLAYING, GameState.PAUSED, GameState.GAME_OVER]:
+        if self.state in [GameState.PLAYING, GameState.PAUSED, GameState.GAME_OVER, GameState.DEMO_MODE]:
             # 2. Draw enemies & player
             self.enemy_manager.draw(game_surf)
             self.player.draw(game_surf, self.animation_effects)
@@ -212,26 +291,51 @@ class Game:
             # 4. Draw game particle effects
             self.animation_effects.draw_particles(game_surf)
             
-        # Draw game surface to screen with shake offset (stays clipped inside gameplay area)
-        self.screen.fill(Colors.BACKGROUND)
-        self.screen.blit(game_surf, (shake_offset[0], shake_offset[1]))
+        # Draw game surface to virtual canvas with shake offset (stays clipped inside gameplay area)
+        self.canvas.fill(Colors.BACKGROUND)
+        self.canvas.blit(game_surf, (shake_offset[0], shake_offset[1]))
         
-        # Floating texts and overlays are drawn on top of screenshake to keep them readable
-        if self.state in [GameState.PLAYING, GameState.PAUSED, GameState.GAME_OVER]:
-            self.animation_effects.draw_floating_texts(self.screen)
-            self.hud.draw(self.screen, self.player, self.wave_manager, self.spell_manager)
+        # Floating texts and overlays are drawn on top of screenshake on the virtual canvas
+        if self.state in [GameState.PLAYING, GameState.PAUSED, GameState.GAME_OVER, GameState.DEMO_MODE]:
+            self.animation_effects.draw_floating_texts(self.canvas)
+            self.hud.draw(self.canvas, self.player, self.wave_manager, self.spell_manager)
             
-        # Draw full screen flashes
-        self.animation_effects.draw_flash(self.screen)
+        # Draw full screen flashes on the virtual canvas
+        self.animation_effects.draw_flash(self.canvas)
         
-        # 5. Draw menus overlays
+        # 5. Draw menus overlays on the virtual canvas
         if self.state == GameState.MAIN_MENU:
-            self.menu_manager.draw_main_menu(self.screen)
+            self.menu_manager.draw_main_menu(self.canvas)
+        elif self.state == GameState.DEMO_MODE:
+            self.menu_manager.draw_demo_overlay(self.canvas)
         elif self.state == GameState.PAUSED:
-            self.menu_manager.draw_pause_menu(self.screen)
+            self.menu_manager.draw_pause_menu(self.canvas)
         elif self.state == GameState.GAME_OVER:
-            self.menu_manager.draw_game_over(self.screen, self.player.score, self.wave_manager.current_wave)
+            self.menu_manager.draw_game_over(self.canvas, self.player.score, self.wave_manager.current_wave)
             
+        # Scale the virtual 1280x720 canvas to fit the actual display window
+        screen_w, screen_h = self.screen.get_size()
+        canvas_aspect = SCREEN_WIDTH / SCREEN_HEIGHT
+        screen_aspect = screen_w / screen_h
+        
+        if screen_aspect > canvas_aspect:
+            # Display window is wider than canvas -> Pillarbox (bars on left/right)
+            new_h = screen_h
+            new_w = int(new_h * canvas_aspect)
+            offset_x = (screen_w - new_w) // 2
+            offset_y = 0
+        else:
+            # Display window is taller than canvas -> Letterbox (bars on top/bottom)
+            new_w = screen_w
+            new_h = int(new_w / canvas_aspect)
+            offset_x = 0
+            offset_y = (screen_h - new_h) // 2
+            
+        # Scale and render the canvas centered on the screen
+        scaled_canvas = pygame.transform.smoothscale(self.canvas, (new_w, new_h))
+        self.screen.fill((0, 0, 0)) # Fill screen with pure black bars
+        self.screen.blit(scaled_canvas, (offset_x, offset_y))
+        
         pygame.display.flip()
 
     def run(self):
