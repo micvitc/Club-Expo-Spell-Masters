@@ -10,37 +10,44 @@ class EnemyManager:
         self.enemies = []
 
     def spawn_enemy(self, enemy_type):
-        """Spawns a new enemy off-screen on the right with a randomized lane height."""
-        # Standard lane height (around wizard's center height)
-        # Randomize Y slightly to give vertical depth
-        lane_y = random.uniform(SCREEN_HEIGHT // 2, SCREEN_HEIGHT // 2 + 120)
+        """Spawns a new enemy off-screen from any of the four directions."""
+        side = random.randint(0, 3) # 0=Top, 1=Right, 2=Bottom, 3=Left
+        spawn_buffer = 40
         
-        # Spawn off-screen to the right
-        spawn_x = GAMEPLAY_WIDTH + 50
+        if side == 0: # Top
+            spawn_x = random.uniform(-spawn_buffer, GAMEPLAY_WIDTH + spawn_buffer)
+            spawn_y = -spawn_buffer
+        elif side == 1: # Right
+            spawn_x = GAMEPLAY_WIDTH + spawn_buffer
+            spawn_y = random.uniform(-spawn_buffer, SCREEN_HEIGHT + spawn_buffer)
+        elif side == 2: # Bottom
+            spawn_x = random.uniform(-spawn_buffer, GAMEPLAY_WIDTH + spawn_buffer)
+            spawn_y = SCREEN_HEIGHT + spawn_buffer
+        else: # Left
+            spawn_x = -spawn_buffer
+            spawn_y = random.uniform(-spawn_buffer, SCREEN_HEIGHT + spawn_buffer)
         
-        new_enemy = Enemy(spawn_x, lane_y, enemy_type, self.asset_manager)
+        new_enemy = Enemy(spawn_x, spawn_y, enemy_type, self.asset_manager)
         self.enemies.append(new_enemy)
 
     def update(self, dt, player, animation_effects):
-        # Sort enemies by x-coordinate to draw back-to-front (depth sorting)
+        # Sort enemies by y-coordinate to draw back-to-front (depth sorting)
         self.enemies.sort(key=lambda e: e.y)
 
         # Update all active enemies
         for enemy in self.enemies[:]:
-            enemy.update(dt)
+            enemy.update(dt, player.x, player.y)
             
             # Check for death
             if enemy.hp <= 0:
                 self.handle_enemy_death(enemy, player, animation_effects)
                 continue
                 
-            # Check collision with wizard
-            # Wizard hitbox is centered at WIZARD_X. If enemy gets close enough:
-            # We check if enemy's front border (left side) crosses player's right border
+            # Check collision with wizard using standard colliderect
             player_hitbox = player.get_hitbox()
             enemy_hitbox = enemy.get_hitbox()
             
-            if enemy_hitbox.left <= player_hitbox.right:
+            if player_hitbox.colliderect(enemy_hitbox):
                 self.handle_player_collision(enemy, player, animation_effects)
 
     def handle_enemy_death(self, enemy, player, animation_effects):
@@ -98,7 +105,7 @@ class EnemyManager:
         # Particle explosion at impact point
         hitbox = enemy.get_hitbox()
         animation_effects.add_particle_burst(
-            player_hitbox.right, hitbox.centery, 
+            hitbox.centerx, hitbox.centery, 
             [Colors.HP_BAR_FILL, Colors.TEXT_MAIN], 
             count=12, 
             speed_range=(2.0, 5.0), 

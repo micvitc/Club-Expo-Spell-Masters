@@ -71,15 +71,19 @@ class HUD:
     def draw_spell_hotbar(self, surface, spell_manager):
         # Spells metadata for HUD hotbar layout
         spell_slots = [
-            {"id": "fire", "key": "1", "symbol": "Circle (O)", "color": Colors.FIRE},
-            {"id": "ice", "key": "2", "symbol": "Line (-)", "color": Colors.ICE},
-            {"id": "lightning", "key": "3", "symbol": "Z-Shape (Z)", "color": Colors.LIGHTNING},
-            {"id": "wind", "key": "4", "symbol": "Spiral (S)", "color": Colors.WIND}
+            {"id": "fire", "key": "1", "symbol": "Top-Right", "color": Colors.FIRE, "disp_name": "Fireball"},
+            {"id": "ice", "key": "2", "symbol": "Top-Left", "color": Colors.ICE, "disp_name": "Frost Chill"},
+            {"id": "lightning", "key": "3", "symbol": "High-Center", "color": Colors.LIGHTNING, "disp_name": "Lightning"},
+            {"id": "wind", "key": "4", "symbol": "Low-Center", "color": Colors.WIND, "disp_name": "Gale Blast"},
+            {"id": "shield", "key": "5", "symbol": "Both Hands", "color": Colors.SHIELD, "disp_name": "Aegis Shield"},
+            {"id": "earthquake", "key": "6", "symbol": "Low-Left", "color": Colors.EARTHQUAKE, "disp_name": "Earthquake"},
+            {"id": "shadow", "key": "7", "symbol": "Low-Right", "color": Colors.SHADOW_SPELL, "disp_name": "Dark Void"},
+            {"id": "solarbeam", "key": "8", "symbol": "Center-Push", "color": Colors.SOLARBEAM, "disp_name": "Solar Beam"}
         ]
         
-        slot_w, slot_h = 135, 75
-        spacing = 15
-        total_w = (slot_w * 4) + (spacing * 3)
+        slot_w, slot_h = 105, 75
+        spacing = 8
+        total_w = (slot_w * 8) + (spacing * 7)
         start_x = (GAMEPLAY_WIDTH - total_w) // 2
         start_y = SCREEN_HEIGHT - slot_h - 20
         
@@ -102,21 +106,21 @@ class HUD:
             pygame.draw.rect(surface, Colors.SHADOW, card_rect, width=2, border_radius=6)
             
             # Left vertical stripe showing spell theme color
-            pygame.draw.rect(surface, slot["color"], (x, y, 6, slot_h), border_radius=6)
+            pygame.draw.rect(surface, slot["color"], (x, y, 5, slot_h), border_radius=6)
             
-            # Write key mapping & spell name
-            name_text = slot["id"].upper()
+            # Write key mapping & spell name (use size 12 font to prevent cutoffs)
+            name_text = slot["disp_name"]
             draw_text_with_outline(
                 surface, f"[{slot['key']}] {name_text}", 
-                self.font_medium, Colors.TEXT_MAIN, Colors.SHADOW, 
-                (x + 12, y + 8)
+                self.font_xsmall, Colors.TEXT_MAIN, Colors.SHADOW, 
+                (x + 8, y + 10)
             )
             
             # Write gesture symbol guide
             draw_text_with_outline(
-                surface, f"Gesture: {slot['symbol']}", 
-                self.font_small, Colors.TEXT_MUTED, Colors.SHADOW, 
-                (x + 12, y + 32)
+                surface, slot["symbol"], 
+                self.font_xsmall, Colors.TEXT_MUTED, Colors.SHADOW, 
+                (x + 8, y + 30)
             )
             
             # Status: READY or CD timer
@@ -129,19 +133,19 @@ class HUD:
                 # Show remaining time text
                 spell = spell_manager.spells[slot["id"]]
                 cd_left = f"{spell.cooldown_timer:.1f}s"
-                cd_w = self.font_large.size(cd_left)[0]
+                cd_w = self.font_medium.size(cd_left)[0]
                 
                 # Draw countdown center-aligned
                 draw_text_with_outline(
-                    surface, cd_left, self.font_large, 
+                    surface, cd_left, self.font_medium, 
                     slot["color"], Colors.SHADOW, 
-                    (x + slot_w // 2 - cd_w // 2, y + slot_h // 2 - 10)
+                    (x + slot_w // 2 - cd_w // 2, y + slot_h // 2 - 8)
                 )
             else:
                 draw_text_with_outline(
                     surface, "READY", 
-                    self.font_small, slot["color"], Colors.SHADOW, 
-                    (x + 12, y + 52)
+                    self.font_xsmall, slot["color"], Colors.SHADOW, 
+                    (x + 8, y + 50)
                 )
 
     def draw_sidebar(self, surface, spell_manager):
@@ -150,11 +154,11 @@ class HUD:
         pygame.draw.rect(surface, (14, 12, 22), sidebar_rect)
         pygame.draw.line(surface, Colors.GOLD, (GAMEPLAY_WIDTH, 0), (GAMEPLAY_WIDTH, SCREEN_HEIGHT), 2)
         
-        # 2. Camera Viewport Placeholder
-        cam_x = GAMEPLAY_WIDTH + 20
-        cam_y = 30
-        cam_w = 280
-        cam_h = 210
+        # 2. Camera Viewport Placeholder (Centered vertically in the sidebar)
+        cam_x = GAMEPLAY_WIDTH + 10
+        cam_w = 300
+        cam_h = 225
+        cam_y = (SCREEN_HEIGHT - cam_h) // 2
         
         cam_rect = pygame.Rect(cam_x, cam_y, cam_w, cam_h)
         pygame.draw.rect(surface, Colors.SHADOW, cam_rect.move(2, 2), border_radius=6)
@@ -168,12 +172,8 @@ class HUD:
         pygame.draw.line(surface, (0, 230, 150, 90), (cx - 15, cy), (cx + 15, cy), 1)
         pygame.draw.line(surface, (0, 230, 150, 90), (cx, cy - 15), (cx, cy + 15), 1)
         
-        # Dynamic scan line moving up and down
-        ticks = pygame.time.get_ticks()
-        scan_y = cam_y + 10 + int((math.sin(ticks * 0.0035) + 1.0) / 2.0 * (cam_h - 20))
-        pygame.draw.line(surface, (0, 230, 150), (cam_x + 4, scan_y), (cam_x + cam_w - 4, scan_y), 1)
-        
         # Recording Blinking Dot
+        ticks = pygame.time.get_ticks()
         rec_active = (ticks // 500) % 2 == 0
         dot_color = (255, 50, 50) if rec_active else (80, 20, 20)
         pygame.draw.circle(surface, dot_color, (cam_x + 25, cam_y + 25), 6)
@@ -184,63 +184,10 @@ class HUD:
         )
         
         # Wait message
-        wait_msg = "[ WAITING FOR HAND GESTURE ]"
+        wait_msg = "[ WAITING FOR GESTURE ]"
         msg_w = self.font_small.size(wait_msg)[0]
         draw_text_with_outline(
             surface, wait_msg, 
             self.font_small, (0, 230, 150), Colors.SHADOW, 
-            (cx - msg_w // 2, cy + 45)
+            (cx - msg_w // 2, cy + 35)
         )
-        
-        # 3. Super Effectiveness Panel
-        title_y = 265
-        draw_text_with_outline(
-            surface, "SPELL EFFECTIVENESS MATRIX", 
-            self.font_large, Colors.GOLD, Colors.SHADOW, 
-            (cam_x, title_y)
-        )
-        
-        # Spell cards
-        cards_info = [
-            {"name": "FIREBALL", "color": Colors.FIRE, "target": "Goblin", "effect": "Deals Double Damage (2x DMG)", "target_color": (90, 180, 80)},
-            {"name": "FROST CHILL", "color": Colors.ICE, "target": "Orc", "effect": "Double DMG & Freeze Time (8s)", "target_color": (150, 75, 40)},
-            {"name": "LIGHTNING STRIKE", "color": Colors.LIGHTNING, "target": "Skeleton", "effect": "Deals Double Damage (2x DMG)", "target_color": (210, 210, 200)},
-            {"name": "GALE BLAST", "color": Colors.WIND, "target": "Goblin", "effect": "Double Pushback Distance (400px)", "target_color": (90, 180, 80)}
-        ]
-        
-        start_card_y = 300
-        card_h = 85
-        card_spacing = 15
-        
-        for idx, card in enumerate(cards_info):
-            y = start_card_y + idx * (card_h + card_spacing)
-            
-            # Card background
-            card_rect = pygame.Rect(cam_x, y, cam_w, card_h)
-            pygame.draw.rect(surface, Colors.SHADOW, card_rect.move(2, 2), border_radius=6)
-            pygame.draw.rect(surface, Colors.BUTTON_NORMAL, card_rect, border_radius=6)
-            pygame.draw.rect(surface, Colors.BUTTON_HOVER, card_rect, width=1, border_radius=6)
-            
-            # Left stripe in spell color
-            pygame.draw.rect(surface, card["color"], (cam_x, y, 6, card_h), border_radius=6)
-            
-            # Title
-            draw_text_with_outline(
-                surface, card["name"], 
-                self.font_medium, card["color"], Colors.SHADOW, 
-                (cam_x + 15, y + 10)
-            )
-            
-            # Weakness arrow
-            draw_text_with_outline(
-                surface, f"VS   {card['target']}", 
-                self.font_small, Colors.TEXT_MAIN, Colors.SHADOW, 
-                (cam_x + 15, y + 33)
-            )
-            
-            # Description text
-            draw_text_with_outline(
-                surface, card["effect"], 
-                self.font_small, Colors.GOLD, Colors.SHADOW, 
-                (cam_x + 15, y + 55)
-            )

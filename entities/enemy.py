@@ -26,6 +26,9 @@ class Enemy:
         # Status Effects
         self.freeze_timer = 0.0
         self.is_frozen = False
+        self.burn_timer = 0.0
+        self.burn_damage_cooldown = 0.0
+        self.slow_timer = 0.0
         
         # Visual feedback timers
         self.hurt_timer = 0.0
@@ -49,20 +52,45 @@ class Enemy:
         self.freeze_timer = max(self.freeze_timer, duration)
         self.is_frozen = True
 
-    def update(self, dt):
-        # Update freeze state
+    def burn(self, duration):
+        self.burn_timer = max(self.burn_timer, duration)
+        if self.burn_damage_cooldown <= 0:
+            self.burn_damage_cooldown = 0.1
+
+    def update(self, dt, player_x=480, player_y=360):
+        # Update freeze state (in seconds)
         if self.freeze_timer > 0:
-            self.freeze_timer -= dt
+            self.freeze_timer -= dt / 60.0
             if self.freeze_timer <= 0:
                 self.is_frozen = False
+                
+        # Update burn state (in seconds)
+        if self.burn_timer > 0:
+            self.burn_timer -= dt / 60.0
+            self.burn_damage_cooldown -= dt / 60.0
+            if self.burn_damage_cooldown <= 0:
+                self.take_damage(1) # Deals 1 burn damage
+                self.burn_damage_cooldown = 0.25 # Tick every 0.25s
+                
+        # Update obstacle/slow timer (in seconds)
+        if self.slow_timer > 0:
+            self.slow_timer -= dt / 60.0
         
         # Update hurt flash
         if self.hurt_timer > 0:
             self.hurt_timer -= dt
-
-        # Move left towards player only if NOT frozen
+ 
+        # Move towards player center only if NOT frozen
         if not self.is_frozen:
-            self.x -= self.speed * dt
+            dx = player_x - self.x
+            dy = player_y - self.y
+            dist = math.hypot(dx, dy)
+            if dist > 0:
+                current_speed = self.speed
+                if self.slow_timer > 0:
+                    current_speed *= 0.35 # 65% speed reduction from obstacles/earthquake
+                self.x += (dx / dist) * current_speed * dt
+                self.y += (dy / dist) * current_speed * dt
             # Bouncing walking cycle based on speed
             self.walk_cycle += 0.15 * self.speed * dt
         else:
@@ -117,6 +145,16 @@ class Enemy:
             glow_surf = pygame.Surface((self.width + 12, self.height + 12), pygame.SRCALPHA)
             pygame.draw.rect(glow_surf, (80, 180, 240, 60), (0, 0, self.width + 12, self.height + 12), border_radius=6)
             surface.blit(glow_surf, (hitbox.x - 6, hitbox.y - 6 - int(bounce)))
+
+        # If burning, draw fire embers floating up
+        if self.burn_timer > 0:
+            ticks = pygame.time.get_ticks()
+            for i in range(3):
+                phase = (ticks * 0.006 + i * (math.pi / 3)) % 1.0
+                spark_x = hitbox.x + (self.width * 0.2) + (self.width * 0.6) * math.sin(ticks * 0.01 + i)
+                spark_y = hitbox.y + self.height - (self.height + 15) * phase
+                spark_r = max(1, int(4 * (1.0 - phase)))
+                pygame.draw.circle(surface, (255, 80 + int(120 * phase), 30), (int(spark_x), int(spark_y)), spark_r)
 
         # Draw mini HP bar for damaged enemies
         if self.hp < self.max_hp and self.hp > 0:

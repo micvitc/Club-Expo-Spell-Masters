@@ -4,7 +4,7 @@ import random
 from utils.constants import Colors
 
 class Projectile:
-    def __init__(self, x, y, target, spell_type, damage, speed, color, effect_duration=0):
+    def __init__(self, x, y, target, spell_type, damage, speed, color, effect_duration=0, player=None, animation_effects=None):
         self.x = float(x)
         self.y = float(y)
         self.target = target
@@ -13,6 +13,8 @@ class Projectile:
         self.speed = speed
         self.color = color
         self.effect_duration = effect_duration
+        self.player = player
+        self.animation_effects = animation_effects
         self.radius = 8 if spell_type == "fire" else 6
         self.alive = True
         
@@ -28,6 +30,9 @@ class Projectile:
         # Calculate vector to target center
         target_hitbox = self.target.get_hitbox()
         tx, ty = target_hitbox.centerx, target_hitbox.centery
+        
+        # Adjust for height wiggles
+        ty -= 4
         
         dx = tx - self.x
         dy = ty - self.y
@@ -49,8 +54,35 @@ class Projectile:
             self.target.take_damage(self.damage)
             
             # Apply spell-specific status effects
-            if self.spell_type == "ice":
-                self.target.freeze(self.effect_duration)
+            if self.spell_type == "fire":
+                self.target.burn(1.0) # Burn for 1s
+                
+            elif self.spell_type == "ice":
+                self.target.freeze(self.effect_duration) # Freeze duration
+                
+            elif self.spell_type == "shadow" and self.player:
+                # Lifesteal: heal the player
+                heal_amount = 10
+                self.player.hp = min(self.player.max_hp, self.player.hp + heal_amount)
+                
+                # Trigger floating heal text and green particles rising from player
+                if self.animation_effects:
+                    self.animation_effects.add_floating_text(
+                        f"+{heal_amount} HP", 
+                        self.player.x - 20, self.player.y - 45, 
+                        (50, 220, 100), 
+                        self.player.asset_manager.get_font(None, 24),
+                        is_damage=False
+                    )
+                    self.animation_effects.add_particle_burst(
+                        self.player.x, self.player.y, 
+                        [(50, 220, 100), (100, 255, 150), (255, 255, 255)], 
+                        count=12, 
+                        speed_range=(0.6, 2.2), 
+                        size_range=(2, 5),
+                        lifetime_range=(15, 35)
+                    )
+                self.player.asset_manager.get_sound("heal.wav").play()
                 
     def draw(self, surface, animation_effects):
         # Draw soft glow behind the projectile
@@ -65,8 +97,6 @@ class Projectile:
         
         # Spawn small trailing particles
         if random.random() < 0.4:
-            vx = random.uniform(-1.0, 1.0)
-            vy = random.uniform(-1.0, 1.0)
             animation_effects.add_particle_burst(
                 self.x, self.y, 
                 [self.color, Colors.TEXT_MAIN], 
