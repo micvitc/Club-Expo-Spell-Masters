@@ -162,7 +162,10 @@ class HUD:
         
         cam_rect = pygame.Rect(cam_x, cam_y, cam_w, cam_h)
         pygame.draw.rect(surface, Colors.SHADOW, cam_rect.move(2, 2), border_radius=6)
-        pygame.draw.rect(surface, (22, 19, 34), cam_rect, border_radius=6)
+        if game and getattr(game, 'cv_frame', None) is not None:
+            surface.blit(game.cv_frame, (cam_x, cam_y))
+        else:
+            pygame.draw.rect(surface, (22, 19, 34), cam_rect, border_radius=6)
         pygame.draw.rect(surface, (0, 230, 150), cam_rect, width=2, border_radius=6)
         
         # Draw camera HUD grid lines

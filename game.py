@@ -63,14 +63,15 @@ class Game:
         self.spell_queue = queue.Queue()
         
         # CV server tracking info
+        self.cv_frame = None
         self.last_gesture = "None"
         self.last_gesture_accuracy = 0
         self.last_gesture_time = 0.0
         
-        # Start background WebSocket client thread to communicate with CV server
-        self.ws_thread_active = True
-        self.ws_thread = threading.Thread(target=self._run_ws_client, daemon=True)
-        self.ws_thread.start()
+        # Start background CV pipeline thread
+        self.cv_thread_active = True
+        self.cv_thread = threading.Thread(target=self._run_cv_pipeline, daemon=True)
+        self.cv_thread.start()
         
         # Load background scaled to gameplay viewport
         self.background = self.asset_manager.get_image(
@@ -87,58 +88,116 @@ class Game:
         self.spell_queue.put(spell_name)
         return True
 
-    def _run_ws_client(self):
-        import asyncio
-        import websockets
+    def _run_cv_pipeline(self):
+        import cv2
+        import mediapipe as mp
         import json
+        import math
         import time
+        import pygame
+        import mediapipe.solutions.hands as mp_hands
+        import mediapipe.solutions.drawing_utils as mp_draw
 
-        async def listen():
-            url = "ws://127.0.0.1:8000/ws"
-            while self.ws_thread_active:
-                try:
-                    async with websockets.connect(url) as ws:
-                        while self.ws_thread_active:
-                            try:
-                                response = await asyncio.wait_for(ws.recv(), timeout=0.5)
-                                data = json.loads(response)
-                                gesture = data.get("gesture", "None")
-                                accuracy = data.get("accuracy", 0)
-                                
-                                self.last_gesture = gesture
-                                self.last_gesture_accuracy = accuracy
-                                self.last_gesture_time = time.time()
-                                
-                                if gesture and gesture != "None":
-                                    spell_map = {
-                                        "thumb": "start",
-                                        "gun": "fire",
-                                        "peace": "ice",
-                                        "spiderman": "lightning",
-                                        "palm": "wind",
-                                        "fist": "shield",
-                                        "lvibe": "earthquake"
-                                    }
-                                    mapped_spell = spell_map.get(gesture.lower().strip())
-                                    if mapped_spell:
-                                        self.cast_spell(mapped_spell)
-                            except asyncio.TimeoutError:
-                                continue
-                            except Exception:
-                                break
-                except Exception:
-                    # Connection failed or lost, retry after small delay
-                    for _ in range(20):
-                        if not self.ws_thread_active:
-                            break
-                        time.sleep(0.1)
-
+        # Load gestures database
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(listen())
-        except Exception as e:
-            print(f"[WS Client] Thread error: {e}")
+            with open("gestures.json", "r") as f:
+                gestures_db = json.load(f)
+        except Exception:
+            gestures_db = {}
+
+        if not gestures_db:
+            print("[CV Pipeline] Warning: gestures.json not found or empty.")
+            
+        hands_detector = mp_hands.Hands(
+            static_image_mode=False, 
+            max_num_hands=1, 
+            min_detection_confidence=0.7
+        )
+
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("[CV Pipeline] Error: Could not open camera.")
+            return
+
+        MAX_TOLERANCE = 0.15 
+        MATCH_THRESHOLD = 60
+
+        while self.cv_thread_active:
+            ret, frame = cap.read()
+            if not ret:
+                time.sleep(0.01)
+                continue
+
+            frame = cv2.flip(frame, 1)
+            
+            # Process with MediaPipe
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = hands_detector.process(rgb_frame)
+
+            recognized_gesture = "None"
+            best_accuracy = 0
+
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                    
+                    live_landmarks = [{'x': lm.x, 'y': lm.y, 'z': lm.z} for lm in hand_landmarks.landmark]
+                    live_wrist = live_landmarks[0]
+                    norm_live = [
+                        {'x': lm['x'] - live_wrist['x'], 'y': lm['y'] - live_wrist['y'], 'z': lm['z'] - live_wrist['z']}
+                        for lm in live_landmarks
+                    ]
+
+                    for name, s_landmarks in gestures_db.items():
+                        total_distance = 0
+                        for i in range(21):
+                            dx = norm_live[i]['x'] - s_landmarks[i]['x']
+                            dy = norm_live[i]['y'] - s_landmarks[i]['y']
+                            dz = norm_live[i]['z'] - s_landmarks[i]['z']
+                            total_distance += math.sqrt(dx**2 + dy**2 + dz**2)
+                        
+                        average_error = total_distance / 21
+                        raw_percentage = (1 - (average_error / MAX_TOLERANCE)) * 100
+                        accuracy = max(0, int(raw_percentage))
+                        
+                        if accuracy > best_accuracy:
+                            best_accuracy = accuracy
+                            recognized_gesture = name
+
+                    if best_accuracy >= MATCH_THRESHOLD:
+                        self.last_gesture = recognized_gesture
+                        self.last_gesture_accuracy = best_accuracy
+                        self.last_gesture_time = time.time()
+                        
+                        # Trigger spell cast
+                        spell_map = {
+                            "thumb": "start",
+                            "gun": "fire",
+                            "peace": "ice",
+                            "spiderman": "lightning",
+                            "palm": "wind",
+                            "fist": "shield",
+                            "lvibe": "earthquake"
+                        }
+                        mapped_spell = spell_map.get(recognized_gesture.lower().strip())
+                        if mapped_spell:
+                            self.cast_spell(mapped_spell)
+
+            # Convert BGR frame to RGB for Pygame
+            rgb_frame_for_pygame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, _ = rgb_frame_for_pygame.shape
+            
+            try:
+                raw_surface = pygame.image.frombuffer(rgb_frame_for_pygame.tobytes(), (w, h), "RGB")
+                # Scale to fit 300x225
+                scaled_surface = pygame.transform.scale(raw_surface, (300, 225))
+                self.cv_frame = scaled_surface
+            except Exception as e:
+                pass
+
+            time.sleep(0.03)
+
+        cap.release()
 
     def toggle_fullscreen(self):
         self.is_fullscreen = not self.is_fullscreen
@@ -419,5 +478,5 @@ class Game:
                 self.update(actual_dt)
                 self.draw()
         finally:
-            self.ws_thread_active = False
+            self.cv_thread_active = False
             pygame.quit()
