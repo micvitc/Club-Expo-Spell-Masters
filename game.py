@@ -95,8 +95,8 @@ class Game:
         import math
         import time
         import pygame
-        import mediapipe.solutions.hands as mp_hands
-        import mediapipe.solutions.drawing_utils as mp_draw
+        mp_hands = mp.solutions.hands
+        mp_draw = mp.solutions.drawing_utils
 
         # Load gestures database
         try:
