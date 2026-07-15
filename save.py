@@ -2,6 +2,7 @@ import cv2
 import mediapipe as mp
 import json
 import os
+from gesture_utils import get_embedding
 
 db_file = "gestures.json"
 if os.path.exists(db_file):
@@ -19,6 +20,11 @@ mp_draw = mp.solutions.drawing_utils
 
 cap = cv2.VideoCapture(0)
 
+print("==== Gesture Saver (Vector Embeddings) ====")
+print("Press 's' to save a gesture.")
+print("Tip: You can save multiple slight variations of the same gesture under the same name!")
+print("Press 'q' to quit.")
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret: break
@@ -27,48 +33,30 @@ while cap.isOpened():
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(rgb_frame)
 
-    landmark_list = []
+    landmark_list = None
 
     if results.multi_hand_landmarks:
         for hand_landmarks in results.multi_hand_landmarks:
             mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-            for lm in hand_landmarks.landmark:
-                landmark_list.append({'x': lm.x, 'y': lm.y, 'z': lm.z})
+            landmark_list = hand_landmarks.landmark
 
-    cv2.imshow("Save Multiple Gestures", frame)
+    cv2.imshow("Save Gestures", frame)
     key = cv2.waitKey(1) & 0xFF
 
     if key == ord('s') and landmark_list:
         gesture_name = input("\n> Enter a name for this gesture: ")
         
-        wrist = landmark_list[0]
-        normalized_landmarks = [
-            {'x': lm['x'] - wrist['x'], 'y': lm['y'] - wrist['y'], 'z': lm['z'] - wrist['z']}
-            for lm in landmark_list
-        ]
+        embedding = get_embedding(landmark_list)
         
-        # Generate 16 rotated orientations (every 22.5 degrees) to make it rotation-invariant
-        multi_orientations = []
-        import math
-        for i in range(16):
-            angle_rad = i * (2 * math.pi / 16)
-            cos_a = math.cos(angle_rad)
-            sin_a = math.sin(angle_rad)
+        if gesture_name not in gestures_db:
+            gestures_db[gesture_name] = []
             
-            rotated_lm = []
-            for lm in normalized_landmarks:
-                # Rotate x,y around wrist (0,0)
-                nx = lm['x'] * cos_a - lm['y'] * sin_a
-                ny = lm['x'] * sin_a + lm['y'] * cos_a
-                rotated_lm.append({'x': nx, 'y': ny, 'z': lm['z']})
-            multi_orientations.append(rotated_lm)
-            
-        gestures_db[gesture_name] = multi_orientations
+        gestures_db[gesture_name].append(embedding)
         
         with open(db_file, "w") as f:
             json.dump(gestures_db, f, indent=4)
             
-        print(f"Saved '{gesture_name}' successfully!")
+        print(f"Saved variation #{len(gestures_db[gesture_name])} for '{gesture_name}' successfully!")
 
     elif key == ord('q'):
         break

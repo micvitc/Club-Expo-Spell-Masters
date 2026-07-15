@@ -1,8 +1,8 @@
 import cv2
 import mediapipe as mp
 import json
-import math
 import time
+from gesture_utils import get_embedding, calculate_similarity
 
 try:
     with open("gestures.json", "r") as f:
@@ -20,14 +20,13 @@ hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_c
 mp_draw = mp.solutions.drawing_utils
 
 cap = cv2.VideoCapture(0)
-MAX_TOLERANCE = 0.15 
 
 leaderboard = {}
 
 print("\n==== Welcome to the Gesture Tester! ====")
 print("For each gesture, you will have 5 seconds to perform it.")
 
-for target_gesture, saved_landmarks in gestures_db.items():
+for target_gesture, saved_embeddings in gestures_db.items():
     print(f"\n>>> Get ready to perform: '{target_gesture}' in 3 seconds...")
     cv2.waitKey(3000)
     
@@ -49,34 +48,15 @@ for target_gesture, saved_landmarks in gestures_db.items():
             for hand_landmarks in results.multi_hand_landmarks:
                 mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                 
-                live_landmarks = [{'x': lm.x, 'y': lm.y, 'z': lm.z} for lm in hand_landmarks.landmark]
-                live_wrist = live_landmarks[0]
-                norm_live = [
-                    {'x': lm['x'] - live_wrist['x'], 'y': lm['y'] - live_wrist['y'], 'z': lm['z'] - live_wrist['z']}
-                    for lm in live_landmarks
-                ]
+                live_embedding = get_embedding(hand_landmarks.landmark)
 
                 current_percentages = {}
-                for name, s_landmarks_list in gestures_db.items():
-                    # Backwards compatibility: if it's the old format (list of 21 dicts), wrap it in a list
-                    if len(s_landmarks_list) > 0 and isinstance(s_landmarks_list[0], dict):
-                        s_landmarks_list = [s_landmarks_list]
-                        
+                for name, embeddings_list in gestures_db.items():
                     best_variant_percentage = 0
-                    for s_landmarks in s_landmarks_list:
-                        total_distance = 0
-                        for i in range(21):
-                            dx = norm_live[i]['x'] - s_landmarks[i]['x']
-                            dy = norm_live[i]['y'] - s_landmarks[i]['y']
-                            dz = norm_live[i]['z'] - s_landmarks[i]['z']
-                            total_distance += math.sqrt(dx**2 + dy**2 + dz**2)
-                        
-                        average_error = total_distance / 21
-                        raw_percentage = (1 - (average_error / MAX_TOLERANCE)) * 100
-                        percentage = max(0, int(raw_percentage))
-                        
-                        if percentage > best_variant_percentage:
-                            best_variant_percentage = percentage
+                    for saved_embedding in embeddings_list:
+                        pct = calculate_similarity(live_embedding, saved_embedding)
+                        if pct > best_variant_percentage:
+                            best_variant_percentage = pct
                             
                     current_percentages[name] = best_variant_percentage
                 

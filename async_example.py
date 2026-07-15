@@ -1,9 +1,9 @@
 import cv2
 import mediapipe as mp
 import json
-import math
 import threading
 import time
+from gesture_utils import get_embedding, calculate_similarity
 
 class AsyncGestureDetector(threading.Thread):
     def __init__(self, db_path="gestures.json", callback=None, threshold=60, cooldown=2.0):
@@ -24,7 +24,6 @@ class AsyncGestureDetector(threading.Thread):
             
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
-        self.MAX_TOLERANCE = 0.15
         
     def stop(self):
         self.running = False
@@ -47,42 +46,22 @@ class AsyncGestureDetector(threading.Thread):
 
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
-                    live_landmarks = [{'x': lm.x, 'y': lm.y, 'z': lm.z} for lm in hand_landmarks.landmark]
-                    live_wrist = live_landmarks[0]
-                    norm_live = [
-                        {'x': lm['x'] - live_wrist['x'], 'y': lm['y'] - live_wrist['y'], 'z': lm['z'] - live_wrist['z']}
-                        for lm in live_landmarks
-                    ]
+                    live_embedding = get_embedding(hand_landmarks.landmark)
 
                     best_match_name = None
                     best_match_percentage = 0
 
-                    for saved_name, s_landmarks_list in self.gestures_db.items():
-                        # Handle backward compatibility for old JSON format
-                        if len(s_landmarks_list) > 0 and isinstance(s_landmarks_list[0], dict):
-                            s_landmarks_list = [s_landmarks_list]
-                            
-                        for saved_landmarks in s_landmarks_list:
-                            total_distance = 0
-                            for i in range(21):
-                                dx = norm_live[i]['x'] - saved_landmarks[i]['x']
-                                dy = norm_live[i]['y'] - saved_landmarks[i]['y']
-                                dz = norm_live[i]['z'] - saved_landmarks[i]['z']
-                                total_distance += math.sqrt(dx**2 + dy**2 + dz**2)
-                            
-                            average_error = total_distance / 21
-                            raw_percentage = (1 - (average_error / self.MAX_TOLERANCE)) * 100
-                            percentage = max(0, int(raw_percentage))
-
-                            if percentage > best_match_percentage:
-                                best_match_percentage = percentage
+                    for saved_name, embeddings_list in self.gestures_db.items():
+                        for saved_embedding in embeddings_list:
+                            pct = calculate_similarity(live_embedding, saved_embedding)
+                            if pct > best_match_percentage:
+                                best_match_percentage = pct
                                 best_match_name = saved_name
 
                     if best_match_name and best_match_percentage >= self.threshold:
                         current_time = time.time()
                         last_time = self.last_detection_time.get(best_match_name, 0)
                         
-                        # Cooldown to prevent spamming the callback
                         if current_time - last_time > self.cooldown:
                             self.last_detection_time[best_match_name] = current_time
                             if self.callback:
@@ -98,8 +77,6 @@ def on_gesture_detected(gesture_name, accuracy):
     """
     print(f"\n[ASYNC EVENT] Gesture '{gesture_name}' detected with {accuracy}% accuracy!")
     
-    # You can match gestures by name or index. 
-    # Example async actions:
     if gesture_name == "fireball":
         print(">> Casting Fireball! <<")
     elif gesture_name == "shield":
@@ -108,13 +85,10 @@ def on_gesture_detected(gesture_name, accuracy):
 if __name__ == "__main__":
     print("Starting background gesture detector...")
     
-    # threshold: minimum percentage match to trigger callback
-    # cooldown: wait N seconds before triggering the same gesture again
     detector = AsyncGestureDetector(callback=on_gesture_detected, threshold=70, cooldown=2.0)
     detector.start()
     
     try:
-        # The main thread can do its own work, like running a game loop or printing
         while True:
             print("Main program loop is doing other work...")
             time.sleep(2)
