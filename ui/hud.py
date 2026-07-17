@@ -12,6 +12,16 @@ class HUD:
         self.font_medium = self.asset_manager.get_font(None, 18)
         self.font_small = self.asset_manager.get_font(None, 14)
         self.font_xsmall = self.asset_manager.get_font(None, 12)
+
+        # --- NEW LOGO CODE ---
+        import os
+        try:
+            raw_logo = pygame.image.load(os.path.join("assets", "logo", "logo.png")).convert_alpha()
+            # Scaled up from 40px to 80px tall for better visibility
+            w, h = raw_logo.get_size()
+            self.sidebar_logo = pygame.transform.smoothscale(raw_logo, (int(w * (80 / h)), 80))
+        except FileNotFoundError:
+            self.sidebar_logo = None
         
     def draw(self, surface, player, wave_manager, spell_manager, game=None):
         # 1. Draw Player HP Bar (Top Left of Gameplay)
@@ -69,21 +79,20 @@ class HUD:
         self.draw_sidebar(surface, spell_manager, game)
 
     def draw_spell_hotbar(self, surface, spell_manager):
-        # Spells metadata for HUD hotbar layout
+        # Updated to 6 working spells and physical hand symbols
         spell_slots = [
-            {"id": "fire", "key": "1", "symbol": "Top-Right", "color": Colors.FIRE, "disp_name": "Fireball"},
-            {"id": "ice", "key": "2", "symbol": "Top-Left", "color": Colors.ICE, "disp_name": "Frost Chill"},
-            {"id": "lightning", "key": "3", "symbol": "High-Center", "color": Colors.LIGHTNING, "disp_name": "Lightning"},
-            {"id": "wind", "key": "4", "symbol": "Low-Center", "color": Colors.WIND, "disp_name": "Gale Blast"},
-            {"id": "shield", "key": "5", "symbol": "Both Hands", "color": Colors.SHIELD, "disp_name": "Aegis Shield"},
-            {"id": "earthquake", "key": "6", "symbol": "Low-Left", "color": Colors.EARTHQUAKE, "disp_name": "Earthquake"},
-            {"id": "shadow", "key": "7", "symbol": "Low-Right", "color": Colors.SHADOW_SPELL, "disp_name": "Dark Void"},
-            {"id": "solarbeam", "key": "8", "symbol": "Center-Push", "color": Colors.SOLARBEAM, "disp_name": "Solar Beam"}
+            {"id": "fire", "key": "1", "symbol": "Gun", "color": Colors.FIRE, "disp_name": "Fireball"},
+            {"id": "ice", "key": "2", "symbol": "Peace", "color": Colors.ICE, "disp_name": "Frost Chill"},
+            {"id": "lightning", "key": "3", "symbol": "Spidey", "color": Colors.LIGHTNING, "disp_name": "Lightning"},
+            {"id": "wind", "key": "4", "symbol": "Palm", "color": Colors.WIND, "disp_name": "Gale Blast"},
+            {"id": "shield", "key": "5", "symbol": "Fist", "color": Colors.SHIELD, "disp_name": "Aegis Shield"},
+            {"id": "earthquake", "key": "6", "symbol": "L-Vibe", "color": Colors.EARTHQUAKE, "disp_name": "Earthquake"}
         ]
         
         slot_w, slot_h = 105, 75
         spacing = 8
-        total_w = (slot_w * 8) + (spacing * 7)
+        # Updated math for 6 slots instead of 8 so it stays perfectly centered
+        total_w = (slot_w * 6) + (spacing * 5) 
         start_x = (GAMEPLAY_WIDTH - total_w) // 2
         start_y = SCREEN_HEIGHT - slot_h - 20
         
@@ -154,11 +163,19 @@ class HUD:
         pygame.draw.rect(surface, (14, 12, 22), sidebar_rect)
         pygame.draw.line(surface, Colors.GOLD, (GAMEPLAY_WIDTH, 0), (GAMEPLAY_WIDTH, SCREEN_HEIGHT), 2)
         
-        # 2. Camera Viewport Placeholder (Centered vertically in the sidebar)
-        cam_x = GAMEPLAY_WIDTH + 10
-        cam_w = 300
-        cam_h = 225
-        cam_y = (SCREEN_HEIGHT - cam_h) // 2
+        # --- NEW LOGO RENDER CODE ---
+        # Draw branding logo at the bottom-left of the sidebar
+        if hasattr(self, 'sidebar_logo') and self.sidebar_logo:
+            logo_x = GAMEPLAY_WIDTH + 15 # 15px padding from the left edge of the sidebar
+            logo_y = SCREEN_HEIGHT - self.sidebar_logo.get_height() - 15 # 15px padding from the bottom
+            surface.blit(self.sidebar_logo, (logo_x, logo_y))
+        
+        # 2. Camera Viewport (Centered dynamically in the new wider sidebar)
+        cam_w = 316
+        cam_h = 237
+        # Centers the camera perfectly by dividing the leftover sidebar space
+        cam_x = GAMEPLAY_WIDTH + ((SIDEBAR_WIDTH - cam_w) // 2) 
+        cam_y = 60 # Shifted up to make room for legend
         
         cam_rect = pygame.Rect(cam_x, cam_y, cam_w, cam_h)
         pygame.draw.rect(surface, Colors.SHADOW, cam_rect.move(2, 2), border_radius=6)
@@ -201,3 +218,48 @@ class HUD:
             self.font_small, msg_color, Colors.SHADOW, 
             (cx - msg_w // 2, cy + 35)
         )
+
+        # 3. Gesture Legend Below Camera
+        legend_y = cam_y + cam_h + 40
+        draw_text_with_outline(
+            surface, "LIVE GESTURE GUIDE", 
+            self.font_medium, Colors.GOLD, Colors.SHADOW, 
+            (cam_x + 20, legend_y)
+        )
+        
+        gestures = [
+            ("Start / Resume", "Thumb", Colors.GOLD),
+            ("Fireball", "Gun", Colors.FIRE),
+            ("Frost Chill", "Peace", Colors.ICE),
+            ("Lightning", "Spiderman", Colors.LIGHTNING),
+            ("Gale Blast", "Palm", Colors.WIND),
+            ("Aegis Shield", "Fist", Colors.SHIELD),
+            ("Earthquake", "L-Vibe", Colors.EARTHQUAKE)
+        ]
+        
+        for i, (spell_name, gesture_name, color) in enumerate(gestures):
+            y_pos = legend_y + 40 + (i * 35)
+            
+            # Draw color bullet
+            pygame.draw.circle(surface, color, (cam_x + 28, y_pos + 6), 5)
+            
+            # Gesture Name
+            draw_text_with_outline(
+                surface, gesture_name, 
+                self.font_small, color, Colors.SHADOW, 
+                (cam_x + 45, y_pos)
+            )
+            
+            # Arrow
+            draw_text_with_outline(
+                surface, "->", 
+                self.font_small, Colors.TEXT_MUTED, Colors.SHADOW, 
+                (cam_x + 130, y_pos)
+            )
+            
+            # Spell Name
+            draw_text_with_outline(
+                surface, spell_name, 
+                self.font_small, Colors.TEXT_MAIN, Colors.SHADOW, 
+                (cam_x + 160, y_pos)
+            )

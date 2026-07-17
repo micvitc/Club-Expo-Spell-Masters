@@ -46,8 +46,8 @@ class Colors:
 # Screen dimensions and UI layouts
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-GAMEPLAY_WIDTH = 960
-SIDEBAR_WIDTH = 320
+GAMEPLAY_WIDTH = 920
+SIDEBAR_WIDTH = 360
 FPS = 60
 
 # Wizard positioning and stats
@@ -94,8 +94,8 @@ SPELLS = {
     "fire": {
         "name": "Fireball",
         "damage": 2,
-        "cooldown": 1.0, # 1.0s cooldown
-        "description": "Ignite & burn closest (1s)",
+        "cooldown": 0.8, # 0.8s: Fast enough to be your main attack, slow enough to require aiming
+        "description": "Ignite & burn closest (0.2s)",
         "color": Colors.FIRE,
         "symbol": "Top-Right Hand",
         "key": "1"
@@ -103,10 +103,10 @@ SPELLS = {
     "ice": {
         "name": "Frost Chill",
         "damage": 1,
-        "cooldown": 1.0, # 1.0s cooldown
-        "freeze_duration": 1.0, # 1.0s freeze
+        "cooldown": 1.5, # 1.5s: Prevents you from instantly freezing the entire screen at once
+        "freeze_duration": 3.0, # 3.0s freeze
         "freeze_slow_factor": 0.0,
-        "description": "Freeze closest enemy (1s)",
+        "description": "Freeze closest enemy (3s)",
         "color": Colors.ICE,
         "symbol": "Top-Left Hand",
         "key": "2"
@@ -114,7 +114,7 @@ SPELLS = {
     "lightning": {
         "name": "Lightning",
         "damage": 3,
-        "cooldown": 3.0, # 3.0s cooldown combo
+        "cooldown": 2.5, # 2.5s: A heavy combo strike needs a bit of a breather
         "description": "Chain lightning combo strike",
         "color": Colors.LIGHTNING,
         "symbol": "High-Center Hand",
@@ -123,7 +123,7 @@ SPELLS = {
     "wind": {
         "name": "Gale Blast",
         "damage": 0,
-        "cooldown": 5.0, # 5.0s cooldown
+        "cooldown": 3.0, # 3.0s: Stops players from just pinning enemies against the wall forever
         "pushback": 180,
         "description": "Blast all screen enemies back",
         "color": Colors.WIND,
@@ -133,8 +133,8 @@ SPELLS = {
     "shield": {
         "name": "Aegis Shield",
         "damage": 0,
-        "cooldown": 7.0, # 7.0s cooldown
-        "duration": 4.0,
+        "cooldown": 12.0, # 12.0s: With a 10s duration, this gives a 2-second vulnerability window!
+        "duration": 10.0,
         "description": "Absorb damage barrier (30 HP)",
         "color": Colors.SHIELD,
         "symbol": "Both Hands Up",
@@ -142,30 +142,11 @@ SPELLS = {
     },
     "earthquake": {
         "name": "Earthquake",
-        "damage": 1,
-        "cooldown": 10.0, # 10.0s cooldown
+        "damage": 10,
+        "cooldown": 8.0, # 8.0s: 10 damage is basically a screen-wipe, so this becomes an "Ultimate" ability
         "description": "DMG & slow all screen (2s)",
         "color": Colors.EARTHQUAKE,
         "symbol": "Low-Left Hand",
         "key": "6"
-    },
-    "shadow": {
-        "name": "Dark Void",
-        "damage": 5, # strong attack (5 damage!)
-        "cooldown": 5.0, # 5.0s cooldown
-        "lifesteal": 10,
-        "description": "High damage & lifesteal (+10 HP)",
-        "color": Colors.SHADOW_SPELL,
-        "symbol": "Low-Right Hand",
-        "key": "7"
-    },
-    "solarbeam": {
-        "name": "Solar Beam",
-        "damage": 3,
-        "cooldown": 7.0, # 7.0s cooldown
-        "description": "Massive wide piercing laser",
-        "color": Colors.SOLARBEAM,
-        "symbol": "Center-Push",
-        "key": "8"
     }
 }
