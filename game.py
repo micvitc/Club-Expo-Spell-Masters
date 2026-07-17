@@ -11,6 +11,7 @@ from ui.animations import AnimationEffects
 from ui.hud import HUD
 from ui.menus import MenuManager
 from entities.player import Player
+from gesture_utils import get_embedding, calculate_similarity
 
 class Game:
     def __init__(self):
@@ -141,28 +142,21 @@ class Game:
                 for hand_landmarks in results.multi_hand_landmarks:
                     mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                     
-                    live_landmarks = [{'x': lm.x, 'y': lm.y, 'z': lm.z} for lm in hand_landmarks.landmark]
-                    live_wrist = live_landmarks[0]
-                    norm_live = [
-                        {'x': lm['x'] - live_wrist['x'], 'y': lm['y'] - live_wrist['y'], 'z': lm['z'] - live_wrist['z']}
-                        for lm in live_landmarks
-                    ]
-
-                    for name, s_landmarks in gestures_db.items():
-                        total_distance = 0
-                        for i in range(21):
-                            dx = norm_live[i]['x'] - s_landmarks[i]['x']
-                            dy = norm_live[i]['y'] - s_landmarks[i]['y']
-                            dz = norm_live[i]['z'] - s_landmarks[i]['z']
-                            total_distance += math.sqrt(dx**2 + dy**2 + dz**2)
-                        
-                        average_error = total_distance / 21
-                        raw_percentage = (1 - (average_error / MAX_TOLERANCE)) * 100
-                        accuracy = max(0, int(raw_percentage))
-                        
-                        if accuracy > best_accuracy:
-                            best_accuracy = accuracy
-                            recognized_gesture = name
+                    live_embedding = get_embedding(hand_landmarks.landmark)
+                    if live_embedding:
+                        for name, templates in gestures_db.items():
+                            if isinstance(templates, list):
+                                if len(templates) > 0 and isinstance(templates[0], list):
+                                    for template in templates:
+                                        accuracy = calculate_similarity(live_embedding, template)
+                                        if accuracy > best_accuracy:
+                                            best_accuracy = accuracy
+                                            recognized_gesture = name
+                                else:
+                                    accuracy = calculate_similarity(live_embedding, templates)
+                                    if accuracy > best_accuracy:
+                                        best_accuracy = accuracy
+                                        recognized_gesture = name
 
                     if best_accuracy >= MATCH_THRESHOLD:
                         self.last_gesture = recognized_gesture
@@ -177,7 +171,9 @@ class Game:
                             "spiderman": "lightning",
                             "palm": "wind",
                             "fist": "shield",
-                            "lvibe": "earthquake"
+                            "lvibe": "earthquake",
+                            "one": "fire",
+                            "sone": "start"
                         }
                         mapped_spell = spell_map.get(recognized_gesture.lower().strip())
                         if mapped_spell:
