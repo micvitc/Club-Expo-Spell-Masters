@@ -1,0 +1,15 @@
+# Python ignore rules
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+venv/
+ENV/
+env/
+.env
+.venv
+
+# Operating System files
+.DS_Store
+Thumbs.db
