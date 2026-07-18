@@ -66,7 +66,7 @@ ENEMY_TYPES = {
         "speed": 2.2,
         "damage": 5,          # Reduced from 10
         "color": (90, 180, 80),
-        "size": (30, 35),
+        "size": (100, 100),
         "score_val": 10
     },
     "skeleton": {
@@ -75,7 +75,7 @@ ENEMY_TYPES = {
         "speed": 1.4,
         "damage": 8,          # Reduced from 15
         "color": (210, 210, 200),
-        "size": (32, 45),
+        "size": (100, 100),
         "score_val": 20
     },
     "orc": {
@@ -84,7 +84,7 @@ ENEMY_TYPES = {
         "speed": 0.8,
         "damage": 12,         # Reduced from 25
         "color": (150, 75, 40),
-        "size": (45, 55),
+        "size": (120, 120),
         "score_val": 40
     }
 }

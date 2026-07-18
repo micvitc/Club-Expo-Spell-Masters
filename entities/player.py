@@ -30,8 +30,8 @@ class Player:
         # Load sprite (supports fallback)
         self.sprite = self.asset_manager.get_image(
             "sprites", "wizard.png", 
-            width=WIZARD_RADIUS*2, 
-            height=WIZARD_RADIUS*2, 
+            width=WIZARD_RADIUS*2.5, 
+            height=WIZARD_RADIUS*2.5, 
             color=Colors.WIZARD_COLOR
         )
 
@@ -108,7 +108,7 @@ class Player:
             glow_color = (Colors.WIZARD_COLOR[0], Colors.WIZARD_COLOR[1], Colors.WIZARD_COLOR[2], 60)
             
         pygame.draw.circle(glow_surf, glow_color, (glow_radius, glow_radius), glow_radius)
-        surface.blit(glow_surf, (self.x - glow_radius, int(draw_y) - glow_radius))
+        #surface.blit(glow_surf, (self.x - glow_radius, int(draw_y) - glow_radius))
 
         # Draw spinning magic circle beneath player
         ticks = pygame.time.get_ticks()
