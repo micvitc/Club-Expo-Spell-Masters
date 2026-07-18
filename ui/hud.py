@@ -1,7 +1,18 @@
 import pygame
 import math
+import os
 from utils.constants import Colors, SCREEN_WIDTH, SCREEN_HEIGHT, GAMEPLAY_WIDTH, SIDEBAR_WIDTH
 from utils.helpers import draw_health_bar, draw_text_with_outline
+
+# A helper for drawing beautiful neon glow in Pygame
+def draw_neon_glow(surface, rect_obj, color, radius=12, intensity=120):
+    x, y, w, h = rect_obj
+    glow_surf = pygame.Surface((w + radius*2, h + radius*2), pygame.SRCALPHA)
+    for i in range(radius):
+        alpha = int(intensity * (1.0 - (i / radius)**1.5))
+        if alpha > 0:
+            pygame.draw.rect(glow_surf, (*color[:3], alpha), (radius - i, radius - i, w + i*2, h + i*2), border_radius=8+i)
+    surface.blit(glow_surf, (x - radius, y - radius))
 
 class HUD:
     def __init__(self, asset_manager):
@@ -12,18 +23,43 @@ class HUD:
         self.font_medium = self.asset_manager.get_font(None, 18)
         self.font_small = self.asset_manager.get_font(None, 14)
         self.font_xsmall = self.asset_manager.get_font(None, 12)
+        
+        # Try loading emoji font
+        try:
+            self.font_emoji_small = pygame.font.SysFont("segoe ui emoji", 14)
+            self.font_emoji_xsmall = pygame.font.SysFont("segoe ui emoji", 12)
+        except Exception:
+            self.font_emoji_small = self.font_small
+            self.font_emoji_xsmall = self.font_xsmall
 
-        # --- NEW LOGO CODE ---
-        import os
         try:
             raw_logo = pygame.image.load(os.path.join("assets", "logo", "logo.png")).convert_alpha()
-            # Scaled up from 40px to 80px tall for better visibility
             w, h = raw_logo.get_size()
-            self.sidebar_logo = pygame.transform.smoothscale(raw_logo, (int(w * (80 / h)), 80))
+            # Larger logo for bottom left of gameplay screen
+            target_h = 100
+            self.sidebar_logo = pygame.transform.smoothscale(raw_logo, (int(w * (target_h / h)), target_h))
+            self.sidebar_logo.set_alpha(80) # Low opacity
         except FileNotFoundError:
             self.sidebar_logo = None
+            
+        # Preload gesture icons
+        self.gesture_icons = {}
+        gesture_names = ["fist", "peace", "lvibe", "threefinger", "palm", "spiderman"]
+        for g in gesture_names:
+            path = os.path.join("assets", "logo", f"{g}.png")
+            try:
+                img = pygame.image.load(path).convert_alpha()
+                self.gesture_icons[g] = img
+            except Exception:
+                self.gesture_icons[g] = None
         
     def draw(self, surface, player, wave_manager, spell_manager, game=None):
+        # 0. Draw Logo at bottom left of gameplay screen (low opacity background element)
+        if hasattr(self, 'sidebar_logo') and self.sidebar_logo:
+            logo_x = 20
+            logo_y = SCREEN_HEIGHT - self.sidebar_logo.get_height() - 20
+            surface.blit(self.sidebar_logo, (logo_x, logo_y))
+            
         # 1. Draw Player HP Bar (Top Left of Gameplay)
         hp_x, hp_y = 30, 30
         hp_w, hp_h = 240, 24
@@ -72,90 +108,10 @@ class HUD:
             (GAMEPLAY_WIDTH // 2 - status_w // 2, hp_y + 30)
         )
         
-        # 4. Draw Spell Guide & Cooldown Hotbar (Bottom Center of Gameplay)
-        self.draw_spell_hotbar(surface, spell_manager)
+        # (Bottom hotbar removed based on user request)
 
         # 5. Draw Right Sidebar (from 960 to 1280)
         self.draw_sidebar(surface, spell_manager, game)
-
-    def draw_spell_hotbar(self, surface, spell_manager):
-        # Updated to 6 working spells and physical hand symbols
-        spell_slots = [
-            {"id": "fire", "key": "1", "symbol": "Gun", "color": Colors.FIRE, "disp_name": "Fireball"},
-            {"id": "ice", "key": "2", "symbol": "Peace", "color": Colors.ICE, "disp_name": "Frost Chill"},
-            {"id": "lightning", "key": "3", "symbol": "Spidey", "color": Colors.LIGHTNING, "disp_name": "Lightning"},
-            {"id": "wind", "key": "4", "symbol": "Palm", "color": Colors.WIND, "disp_name": "Gale Blast"},
-            {"id": "shield", "key": "5", "symbol": "Fist", "color": Colors.SHIELD, "disp_name": "Aegis Shield"},
-            {"id": "earthquake", "key": "6", "symbol": "L-Vibe", "color": Colors.EARTHQUAKE, "disp_name": "Earthquake"}
-        ]
-        
-        slot_w, slot_h = 105, 75
-        spacing = 8
-        # Updated math for 6 slots instead of 8 so it stays perfectly centered
-        total_w = (slot_w * 6) + (spacing * 5) 
-        start_x = (GAMEPLAY_WIDTH - total_w) // 2
-        start_y = SCREEN_HEIGHT - slot_h - 20
-        
-        for i, slot in enumerate(spell_slots):
-            x = start_x + i * (slot_w + spacing)
-            y = start_y
-            
-            # Cooldown progress
-            cd_ratio = spell_manager.get_cooldown_ratio(slot["id"])
-            
-            # Card background
-            card_rect = pygame.Rect(x, y, slot_w, slot_h)
-            
-            # Subtle outer glow if spell is ready
-            if cd_ratio == 0:
-                glow_rect = card_rect.inflate(4, 4)
-                pygame.draw.rect(surface, (slot["color"][0], slot["color"][1], slot["color"][2], 100), glow_rect, border_radius=6, width=1)
-                
-            pygame.draw.rect(surface, Colors.BUTTON_NORMAL, card_rect, border_radius=6)
-            pygame.draw.rect(surface, Colors.SHADOW, card_rect, width=2, border_radius=6)
-            
-            # Left vertical stripe showing spell theme color
-            pygame.draw.rect(surface, slot["color"], (x, y, 5, slot_h), border_radius=6)
-            
-            # Write key mapping & spell name (use size 12 font to prevent cutoffs)
-            name_text = slot["disp_name"]
-            draw_text_with_outline(
-                surface, f"[{slot['key']}] {name_text}", 
-                self.font_xsmall, Colors.TEXT_MAIN, Colors.SHADOW, 
-                (x + 8, y + 10)
-            )
-            
-            # Write gesture symbol guide
-            draw_text_with_outline(
-                surface, slot["symbol"], 
-                self.font_xsmall, Colors.TEXT_MUTED, Colors.SHADOW, 
-                (x + 8, y + 30)
-            )
-            
-            # Status: READY or CD timer
-            if cd_ratio > 0:
-                # Render transparent grey overlay indicating CD progress
-                overlay = pygame.Surface((slot_w, slot_h), pygame.SRCALPHA)
-                overlay.fill((25, 20, 35, 180))
-                surface.blit(overlay, (x, y))
-                
-                # Show remaining time text
-                spell = spell_manager.spells[slot["id"]]
-                cd_left = f"{spell.cooldown_timer:.1f}s"
-                cd_w = self.font_medium.size(cd_left)[0]
-                
-                # Draw countdown center-aligned
-                draw_text_with_outline(
-                    surface, cd_left, self.font_medium, 
-                    slot["color"], Colors.SHADOW, 
-                    (x + slot_w // 2 - cd_w // 2, y + slot_h // 2 - 8)
-                )
-            else:
-                draw_text_with_outline(
-                    surface, "READY", 
-                    self.font_xsmall, slot["color"], Colors.SHADOW, 
-                    (x + 8, y + 50)
-                )
 
     def draw_sidebar(self, surface, spell_manager, game=None):
         # 1. Background Frame
@@ -163,19 +119,11 @@ class HUD:
         pygame.draw.rect(surface, (14, 12, 22), sidebar_rect)
         pygame.draw.line(surface, Colors.GOLD, (GAMEPLAY_WIDTH, 0), (GAMEPLAY_WIDTH, SCREEN_HEIGHT), 2)
         
-        # --- NEW LOGO RENDER CODE ---
-        # Draw branding logo at the bottom-left of the sidebar
-        if hasattr(self, 'sidebar_logo') and self.sidebar_logo:
-            logo_x = GAMEPLAY_WIDTH + 15 # 15px padding from the left edge of the sidebar
-            logo_y = SCREEN_HEIGHT - self.sidebar_logo.get_height() - 15 # 15px padding from the bottom
-            surface.blit(self.sidebar_logo, (logo_x, logo_y))
-        
-        # 2. Camera Viewport (Centered dynamically in the new wider sidebar)
+        # 2. Camera Viewport (Pushed slightly up to give the grid space)
         cam_w = 316
         cam_h = 237
-        # Centers the camera perfectly by dividing the leftover sidebar space
         cam_x = GAMEPLAY_WIDTH + ((SIDEBAR_WIDTH - cam_w) // 2) 
-        cam_y = 60 # Shifted up to make room for legend
+        cam_y = 20 # Pushed from 60 to 20
         
         cam_rect = pygame.Rect(cam_x, cam_y, cam_w, cam_h)
         pygame.draw.rect(surface, Colors.SHADOW, cam_rect.move(2, 2), border_radius=6)
@@ -185,14 +133,11 @@ class HUD:
             pygame.draw.rect(surface, (22, 19, 34), cam_rect, border_radius=6)
         pygame.draw.rect(surface, (0, 230, 150), cam_rect, width=2, border_radius=6)
         
-        # Draw camera HUD grid lines
         pygame.draw.rect(surface, (0, 230, 150, 40), (cam_x + 10, cam_y + 10, cam_w - 20, cam_h - 20), width=1)
-        # Crosshair in center
         cx, cy = cam_x + cam_w // 2, cam_y + cam_h // 2
         pygame.draw.line(surface, (0, 230, 150, 90), (cx - 15, cy), (cx + 15, cy), 1)
         pygame.draw.line(surface, (0, 230, 150, 90), (cx, cy - 15), (cx, cy + 15), 1)
         
-        # Recording Blinking Dot
         ticks = pygame.time.get_ticks()
         rec_active = (ticks // 500) % 2 == 0
         dot_color = (255, 50, 50) if rec_active else (80, 20, 20)
@@ -203,11 +148,10 @@ class HUD:
             (cam_x + 38, cam_y + 18)
         )
         
-        # Wait/Status message
         import time
         if game and hasattr(game, 'last_gesture') and game.last_gesture != "None" and (time.time() - game.last_gesture_time < 1.5):
             msg = f"{game.last_gesture.upper()} ({game.last_gesture_accuracy}%)"
-            msg_color = (0, 255, 100) # Bright green
+            msg_color = (0, 255, 100)
         else:
             msg = "[ WAITING FOR GESTURE ]"
             msg_color = (0, 230, 150)
@@ -219,47 +163,90 @@ class HUD:
             (cx - msg_w // 2, cy + 35)
         )
 
-        # 3. Gesture Legend Below Camera
-        legend_y = cam_y + cam_h + 40
+        # 3. Gesture Legend 2x3 Grid
+        legend_y = cam_y + cam_h + 15
         draw_text_with_outline(
-            surface, "LIVE GESTURE GUIDE", 
+            surface, "SPELL GUIDE & COOLDOWNS", 
             self.font_medium, Colors.GOLD, Colors.SHADOW, 
-            (cam_x + 20, legend_y)
+            (cam_x + 10, legend_y)
         )
         
-        gestures = [
-            ("Start / Resume", "Thumb", Colors.GOLD),
-            ("Fireball", "Gun", Colors.FIRE),
-            ("Frost Chill", "Peace", Colors.ICE),
-            ("Lightning", "Spiderman", Colors.LIGHTNING),
-            ("Gale Blast", "Palm", Colors.WIND),
-            ("Aegis Shield", "Fist", Colors.SHIELD),
-            ("Earthquake", "L-Vibe", Colors.EARTHQUAKE)
+        grid_spells = [
+            {"id": "fire", "symbol": "fist", "color": Colors.FIRE, "disp": "🔥 Fireball"},
+            {"id": "ice", "symbol": "peace", "color": Colors.ICE, "disp": "❄️ Frost Chill"},
+            {"id": "lightning", "symbol": "lvibe", "color": Colors.LIGHTNING, "disp": "⚡ Lightning"},
+            {"id": "wind", "symbol": "threefinger", "color": Colors.WIND, "disp": "🌪️ Gale Blast"},
+            {"id": "shield", "symbol": "palm", "color": Colors.SHIELD, "disp": "🛡️ Aegis Shield"},
+            {"id": "earthquake", "symbol": "spiderman", "color": Colors.EARTHQUAKE, "disp": "🌍 Earthquake"}
         ]
         
-        for i, (spell_name, gesture_name, color) in enumerate(gestures):
-            y_pos = legend_y + 40 + (i * 35)
+        # Sized nicely to fit everything including the logo at the bottom
+        box_w = 145
+        box_h = 90
+        padding_x = 10
+        padding_y = 10
+        
+        start_x = cam_x + (cam_w - (box_w * 2 + padding_x)) // 2
+        start_y = legend_y + 25
+        
+        for i, item in enumerate(grid_spells):
+            col = i % 2
+            row = i // 2
             
-            # Draw color bullet
-            pygame.draw.circle(surface, color, (cam_x + 28, y_pos + 6), 5)
+            bx = start_x + col * (box_w + padding_x)
+            by = start_y + row * (box_h + padding_y)
             
-            # Gesture Name
-            draw_text_with_outline(
-                surface, gesture_name, 
-                self.font_small, color, Colors.SHADOW, 
-                (cam_x + 45, y_pos)
-            )
+            cd_ratio = spell_manager.get_cooldown_ratio(item["id"])
             
-            # Arrow
-            draw_text_with_outline(
-                surface, "->", 
-                self.font_small, Colors.TEXT_MUTED, Colors.SHADOW, 
-                (cam_x + 130, y_pos)
-            )
+            # Base box background
+            pygame.draw.rect(surface, Colors.BUTTON_NORMAL, (bx, by, box_w, box_h), border_radius=8)
             
-            # Spell Name
-            draw_text_with_outline(
-                surface, spell_name, 
-                self.font_small, Colors.TEXT_MAIN, Colors.SHADOW, 
-                (cam_x + 160, y_pos)
-            )
+            if cd_ratio == 0:
+                # Add real neon glow around the entire box
+                draw_neon_glow(surface, (bx, by, box_w, box_h), item["color"], radius=10, intensity=100)
+                # Hard border
+                pygame.draw.rect(surface, item["color"], (bx, by, box_w, box_h), width=2, border_radius=8)
+            else:
+                # Cooldown - draw base border
+                pygame.draw.rect(surface, Colors.SHADOW, (bx, by, box_w, box_h), width=2, border_radius=8)
+                
+                # Glowing side border bar (loading effect)
+                fill_ratio = 1.0 - cd_ratio
+                bar_h = int((box_h - 4) * fill_ratio)
+                if bar_h > 0:
+                    bar_rect = (bx, by + (box_h - 2 - bar_h), 5, bar_h)
+                    # Real neon glow just on the loading bar
+                    draw_neon_glow(surface, bar_rect, item["color"], radius=6, intensity=150)
+                    # Solid core line
+                    pygame.draw.rect(surface, (255,255,255), bar_rect, border_radius=3)
+            
+            # Draw Custom Icon (Top 75%)
+            img_h = int(box_h * 0.70)
+            img = self.gesture_icons.get(item["symbol"])
+            if img:
+                iw, ih = img.get_size()
+                scale = min((box_w - 20) / iw, img_h / ih)
+                scaled_img = pygame.transform.smoothscale(img, (int(iw * scale), int(ih * scale)))
+                img_x = bx + box_w // 2 - scaled_img.get_width() // 2
+                img_y = by + 3 + (img_h - scaled_img.get_height()) // 2
+                surface.blit(scaled_img, (img_x, img_y))
+            else:
+                # Placeholder text if missing
+                draw_text_with_outline(
+                    surface, "No Image", 
+                    self.font_small, Colors.TEXT_MUTED, Colors.SHADOW, 
+                    (bx + box_w // 2 - 25, by + img_h // 2)
+                )
+                
+            # Text at bottom
+            text_str = item["disp"]
+            outline_surf = self.font_emoji_xsmall.render(text_str, True, Colors.SHADOW)
+            text_surf = self.font_emoji_xsmall.render(text_str, True, Colors.TEXT_MAIN)
+            
+            text_x = bx + box_w // 2 - text_surf.get_width() // 2
+            text_y = by + box_h - text_surf.get_height() - 5
+            
+            surface.blit(outline_surf, (text_x + 1, text_y + 1))
+            surface.blit(text_surf, (text_x, text_y))
+
+

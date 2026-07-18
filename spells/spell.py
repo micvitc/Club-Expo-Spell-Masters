@@ -89,7 +89,7 @@ class FireSpell(Spell):
         animation_effects.trigger_flash(0.1, (255, 120, 60))
         
         # Play cast sound
-        player.asset_manager.get_sound("fire.wav").play()
+        player.asset_manager.get_sound("fireball.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -149,7 +149,7 @@ class IceSpell(Spell):
             size_range=(2, 5)
         )
         
-        player.asset_manager.get_sound("ice.wav").play()
+        player.asset_manager.get_sound("frost.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -262,7 +262,7 @@ class LightningSpell(Spell):
                 is_damage=False
             )
         
-        player.asset_manager.get_sound("lightning.wav").play()
+        player.asset_manager.get_sound("lightning.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -318,7 +318,7 @@ class WindSpell(Spell):
         # Soft green screen flash
         animation_effects.trigger_flash(0.08, (150, 240, 180))
         
-        player.asset_manager.get_sound("wind.wav").play()
+        player.asset_manager.get_sound("blast.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -348,7 +348,7 @@ class ShieldSpell(Spell):
             is_damage=False
         )
         
-        player.asset_manager.get_sound("shield.wav").play()
+        player.asset_manager.get_sound("shield.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -362,7 +362,7 @@ class EarthquakeSpell(Spell):
         animation_effects.trigger_shake(duration=0.6, intensity=12.0)
         animation_effects.trigger_flash(0.12, (180, 110, 60))
         
-        player.asset_manager.get_sound("earthquake.wav").play()
+        player.asset_manager.get_sound("earthquake.mp3").play()
         
         if enemies:
             alive_enemies = [e for e in enemies if hasattr(e, 'hp') and e.hp > 0]

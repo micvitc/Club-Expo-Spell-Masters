@@ -1,0 +1,9 @@
+| Spell            | Pose            
+| ---------------- | ----------------
+| 🔥 Fireball      | 👊 fist        
+| ❄️ Frost Chill   | ✌️ peace      
+| ⚡ Lightning      | ☝️ lvibe  
+| 🌪️ Gale Blast   | 🖖 threefinger 
+| 🛡️ Aegis Shield | ✋ palm     
+| 🌍 Earthquake    | 🤘 spiderman 
+

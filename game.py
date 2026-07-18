@@ -167,12 +167,12 @@ class Game:
                         # Trigger spell cast
                         spell_map = {
                             "thumb": "start",
-                            "gun": "fire",
+                            "fist": "fire",
                             "peace": "ice",
-                            "spiderman": "lightning",
-                            "palm": "wind",
-                            "fist": "shield",
-                            "lvibe": "earthquake"
+                            "lvibe": "lightning",
+                            "threefinger": "wind",
+                            "palm": "shield",
+                            "spiderman": "earthquake"
                         }
                         mapped_spell = spell_map.get(recognized_gesture.lower().strip())
                         if mapped_spell:
