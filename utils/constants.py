@@ -94,7 +94,7 @@ SPELLS = {
     "fire": {
         "name": "Fireball",
         "damage": 2,
-        "cooldown": 2.2, # Increased by 2 seconds
+        "cooldown": 1.5, # Increased by 2 seconds
         "description": "Ignite & burn closest (0.2s)",
         "color": Colors.FIRE,
         "symbol": "Top-Right Hand",
@@ -103,7 +103,7 @@ SPELLS = {
     "ice": {
         "name": "Frost Chill",
         "damage": 1,
-        "cooldown": 2, 
+        "cooldown": 1.2, 
         "freeze_duration": 3.0, 
         "freeze_slow_factor": 0.0,
         "description": "Freeze closest enemy (3s)",
@@ -114,7 +114,7 @@ SPELLS = {
     "lightning": {
         "name": "Lightning",
         "damage": 4,
-        "cooldown": 1.2, 
+        "cooldown": 7, 
         "description": "Chain lightning combo strike",
         "color": Colors.LIGHTNING,
         "symbol": "High-Center Hand",
@@ -123,7 +123,7 @@ SPELLS = {
     "wind": {
         "name": "Gale Blast",
         "damage": 0,
-        "cooldown": 2, 
+        "cooldown": 6, 
         "pushback": 180,
         "description": "Blast all screen enemies back",
         "color": Colors.WIND,
@@ -142,8 +142,8 @@ SPELLS = {
     },
     "earthquake": {
         "name": "Earthquake",
-        "damage": 10,
-        "cooldown": 6, 
+        "damage": 2,
+        "cooldown": 20, 
         "description": "DMG & slow all screen (2s)",
         "color": Colors.EARTHQUAKE,
         "symbol": "Low-Left Hand",
