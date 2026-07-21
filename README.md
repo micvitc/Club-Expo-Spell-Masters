@@ -87,7 +87,8 @@ SpellMaster/
 ## 🚀 Installation & How to Run
 
 ### 1. Prerequisites
-Ensure you have **Python 3.9+** and a working webcam.
+Ensure you have a stable Python release between **Python 3.9 and 3.12** (Python 3.11 is highly recommended) and a working webcam.
+*(Note: Avoid experimental/pre-release Python versions like Python 3.14+ because pre-compiled binary wheels for Pygame and MediaPipe are not available, leading to compilation issues or disabled features like fonts and PNG support).*
 
 ### 2. Set Up a Virtual Environment (Recommended)
 Creating a virtual environment avoids library conflicts:
@@ -96,8 +97,8 @@ Creating a virtual environment avoids library conflicts:
 git clone https://github.com/micvitc/Club-Expo-Spell-Masters.git
 cd Club-Expo-Spell-Masters
 
-# Create virtual environment
-python3 -m venv venv
+# Create virtual environment using Python 3.11 (highly recommended)
+python3.11 -m venv venv
 
 # Activate virtual environment
 source venv/bin/activate
