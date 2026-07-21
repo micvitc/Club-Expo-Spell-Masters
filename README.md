@@ -68,29 +68,69 @@ SpellMaster/
 ├── settings.py              # Directory paths & general window settings
 │
 ├── save.py                  # Utility script to save new custom hand gestures
-├── tester2.py               # Utility script to test gestures directly via webcam
+├── tester.py                # 5-second timed gesture tester game with accuracy leaderboard
+├── tester2.py               # Continuous real-time gesture auto-tester via webcam
+├── async_example.py         # Demo for running the 72D gesture detector asynchronously in a background thread
+├── client.py                # Websocket-client template for receiving gesture events remotely
 ├── gesture_utils.py         # 72D Vector embedding & Cosine Similarity math engine
 ├── gestures.json            # Database storing gesture vector embeddings
 │
-├── entities/                # Player, Enemy (Goblins, Skeletons, Orcs), and Projectile classes
-├── spells/                  # Spell definitions, Cooldown manager, and Visual effects
-├── ui/                      # HUD renderer (2x3 Neon Grid, UI layouts), Menus, Animations
+├── entities/                # Player (Wizard, Wizard Casting), Enemies (Goblins, Skeletons, Orcs), and Projectile classes
+├── spells/                  # Spell definitions (Fireball, Frost, Lightning, Gale, Aegis, Earthquake), Cooldown manager
+├── ui/                      # HUD renderer (2x3 Neon Grid, UI layouts), Menus, Animations (Neon Bloom effect)
 ├── managers/                # Enemy Wave spawner, Collision checks, Asset loader
-└── utils/                   # Color schemes, stat values, spell properties, helpers
+└── utils/                   # Color schemes, stat values, spell properties, constants, helpers
 ```
 
 ---
 
 ## 🚀 How to Run the Game
 
-1. Install Pygame and OpenCV/MediaPipe dependencies:
+1. Install requirements:
    ```bash
-   pip install pygame opencv-python mediapipe numpy
+   pip install -r requirements.txt
    ```
+   *(Ensure you have Pygame, OpenCV, MediaPipe, Numpy, FastAPI, Uvicorn, and websockets installed)*
+
 2. Run the game from the root directory:
    ```bash
    python3 main.py
    ```
+
 3. Show your hand to the webcam to play!
 
-*(Note: If you want to add entirely new spells, you can use the `save.py` utility to register a new gesture directly into the `gestures.json` database!)*
+---
+
+## 🛠️ Utility & Testing Scripts
+
+We have provided several helper scripts to test the CV engine and integrate it with other architectures:
+
+- **Interactive Gesture Calibration (`save.py`):**
+  Use this to record new custom hand gesture vectors. Run it and follow the on-screen prompts to capture hand embeddings directly into the `gestures.json` database.
+  ```bash
+  python3 save.py
+  ```
+
+- **Timed Gesture Tester Game (`tester.py`):**
+  A game-like tool to test all gestures in the database. You have 5 seconds to perform each gesture, and a live similarity percentage is shown. At the end, a leaderboard is printed with your highest scores.
+  ```bash
+  python3 tester.py
+  ```
+
+- **Continuous Auto-Tester (`tester2.py`):**
+  Continuously analyzes your video feed and displays the detected gesture and confidence score. Perfect for tuning threshold values.
+  ```bash
+  python3 tester2.py
+  ```
+
+- **Asynchronous Background Detector (`async_example.py`):**
+  A developer demo showing how to spin up the gesture detection engine on a background thread and handle detections asynchronously via callbacks.
+  ```bash
+  python3 async_example.py
+  ```
+
+- **Remote Event Client (`client.py`):**
+  A lightweight WebSocket client boilerplate to demonstrate how you could broadcast gesture events over a network and consume them from external clients.
+  ```bash
+  python3 client.py
+  ```
