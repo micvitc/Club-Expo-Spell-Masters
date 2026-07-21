@@ -491,3 +491,7 @@ class Game:
         finally:
             self.cv_thread_active = False
             pygame.quit()
+
+if __name__ == "__main__":
+    game = Game()
+    game.run()
