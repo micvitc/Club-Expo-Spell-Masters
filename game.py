@@ -379,7 +379,7 @@ class Game:
                 if self.demo_bot_timer >= 60:
                     self.demo_bot_timer = 0
                     import random
-                    spells_list = ["fire", "ice", "lightning", "wind", "shield", "earthquake", "shadow", "solarbeam"]
+                    spells_list = ["fire", "ice", "lightning", "wind", "shield", "earthquake"]
                     self.cast_spell(random.choice(spells_list))
             
             # Update projectiles
@@ -490,6 +490,9 @@ class Game:
                 self.draw()
         finally:
             self.cv_thread_active = False
+            # Wait for CV thread to finish its loop and release camera
+            if hasattr(self, 'cv_thread') and self.cv_thread.is_alive():
+                self.cv_thread.join(timeout=1.0)
             pygame.quit()
 
 if __name__ == "__main__":
