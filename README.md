@@ -84,20 +84,45 @@ SpellMaster/
 
 ---
 
-## 🚀 How to Run the Game
+## 🚀 Installation & How to Run
 
-1. Install requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   *(Ensure you have Pygame, OpenCV, MediaPipe, Numpy, FastAPI, Uvicorn, and websockets installed)*
+### 1. Prerequisites
+Ensure you have **Python 3.9+** and a working webcam.
 
-2. Run the game from the root directory:
-   ```bash
-   python3 main.py
-   ```
+### 2. Set Up a Virtual Environment (Recommended)
+Creating a virtual environment avoids library conflicts:
+```bash
+# Clone the repository (if not already done)
+git clone https://github.com/micvitc/Club-Expo-Spell-Masters.git
+cd Club-Expo-Spell-Masters
 
-3. Show your hand to the webcam to play!
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+```
+
+### 3. Install Python Dependencies
+Install the required packages using the project's [requirements.txt](file:///home/anasa/Projects/MIC-Spell-Masters/requirements.txt):
+```bash
+pip install -r requirements.txt
+```
+*(Packages include: `pygame`, `opencv-python`, `mediapipe`, `numpy`, `fastapi`, `uvicorn`, and `websockets`)*
+
+### 4. Linux System Dependencies (If needed)
+If you are on Linux (Ubuntu/Debian) and encounter `libGL.so` or OpenCV/MediaPipe startup errors, install the required system libraries:
+```bash
+sudo apt-get update
+sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+```
+
+### 5. Running the Game
+After completing the installation steps, run the game using:
+```bash
+python3 main.py
+```
+Show your hand to the webcam to play! (Check [Gesture-to-Spell Mappings](#🖐️-gesture-to-spell-mappings) for details.)
 
 ---
 
