@@ -20,7 +20,7 @@ class Player:
         self.hover_speed = 0.05
         
         self.cast_timer = 0.0
-        self.cast_duration = 0.3  # cast frame length
+        self.cast_duration = 1.0  # increased cast frame length to make stance visible
         self.is_casting = False
         self.last_cast_spell = None
         
@@ -30,8 +30,14 @@ class Player:
         # Load sprite (supports fallback)
         self.sprite = self.asset_manager.get_image(
             "sprites", "wizard.png", 
-            width=WIZARD_RADIUS*2, 
-            height=WIZARD_RADIUS*2, 
+            width=WIZARD_RADIUS*2.5, 
+            height=WIZARD_RADIUS*2.5, 
+            color=Colors.WIZARD_COLOR
+        )
+        self.sprite_casting = self.asset_manager.get_image(
+            "sprites", "wizard_casting.png", 
+            width=WIZARD_RADIUS*2.5, 
+            height=WIZARD_RADIUS*2.5, 
             color=Colors.WIZARD_COLOR
         )
 
@@ -73,12 +79,12 @@ class Player:
                 
         # Update animation timers
         if self.cast_timer > 0:
-            self.cast_timer -= dt
+            self.cast_timer -= dt / 60.0
             if self.cast_timer <= 0:
                 self.is_casting = False
                 
         if self.hurt_timer > 0:
-            self.hurt_timer -= dt
+            self.hurt_timer -= dt / 60.0
 
     def draw(self, surface, animation_effects):
         from utils.constants import SPELLS
@@ -108,7 +114,7 @@ class Player:
             glow_color = (Colors.WIZARD_COLOR[0], Colors.WIZARD_COLOR[1], Colors.WIZARD_COLOR[2], 60)
             
         pygame.draw.circle(glow_surf, glow_color, (glow_radius, glow_radius), glow_radius)
-        surface.blit(glow_surf, (self.x - glow_radius, int(draw_y) - glow_radius))
+        #surface.blit(glow_surf, (self.x - glow_radius, int(draw_y) - glow_radius))
 
         # Draw spinning magic circle beneath player
         ticks = pygame.time.get_ticks()
@@ -163,17 +169,20 @@ class Player:
             pygame.draw.line(surface, Colors.GOLD, (self.x - 5, draw_y + 15), (staff_x - 5, staff_y - 20), 4)
             pygame.draw.circle(surface, Colors.WIZARD_COLOR, (staff_x - 5, int(staff_y - 20)), 6)
             
+        # Determine which sprite to use
+        current_sprite = self.sprite_casting if self.is_casting else self.sprite
+        
         # Draw Main Sprite
-        sprite_rect = self.sprite.get_rect(center=(self.x, int(draw_y)))
+        sprite_rect = current_sprite.get_rect(center=(self.x, int(draw_y)))
         
         # If hurt, flash sprite red
         if self.hurt_timer > 0 and not self.shield_active:
-            hurt_surf = self.sprite.copy()
+            hurt_surf = current_sprite.copy()
             # Overlay red
             hurt_surf.fill((255, 50, 50, 150), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(hurt_surf, sprite_rect)
         else:
-            surface.blit(self.sprite, sprite_rect)
+            surface.blit(current_sprite, sprite_rect)
 
         # Draw Aegis Shield Bubble if active
         if self.shield_active:

@@ -1,6 +1,6 @@
 import pygame
 import math
-from spells.spell import FireSpell, IceSpell, LightningSpell, WindSpell, ShieldSpell, EarthquakeSpell, ShadowSpell, SolarBeamSpell
+from spells.spell import FireSpell, IceSpell, LightningSpell, WindSpell, ShieldSpell, EarthquakeSpell
 from utils.constants import Colors
 
 class SpellManager:
@@ -14,9 +14,7 @@ class SpellManager:
             "lightning": LightningSpell(),
             "wind": WindSpell(),
             "shield": ShieldSpell(),
-            "earthquake": EarthquakeSpell(),
-            "shadow": ShadowSpell(),
-            "solarbeam": SolarBeamSpell()
+            "earthquake": EarthquakeSpell()
         }
 
     def update(self, dt):

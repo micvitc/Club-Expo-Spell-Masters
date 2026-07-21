@@ -71,6 +71,7 @@ class MenuManager:
         self.font_title = self.asset_manager.get_font(None, 64)
         self.font_subtitle = self.asset_manager.get_font(None, 24)
         self.font_button = self.asset_manager.get_font(None, 24)
+        self.font_medium = self.asset_manager.get_font(None, 20)
         self.font_hud = self.asset_manager.get_font(None, 18)
 
         # Initialize Button lists for different states
@@ -93,6 +94,16 @@ class MenuManager:
                 "alpha_phase": random.uniform(0, 100)
             })
 
+        # --- NEW LOGO CODE ---
+        import os
+        try:
+            raw_logo = pygame.image.load(os.path.join("assets", "logo", "logo.png")).convert_alpha()
+            # Scale dynamically to keep aspect ratio (120px tall for a nice Hero size)
+            w, h = raw_logo.get_size()
+            self.menu_logo = pygame.transform.smoothscale(raw_logo, (int(w * (120 / h)), 120))
+        except FileNotFoundError:
+            self.menu_logo = None
+
     def setup_buttons(self):
         # 1. Main Menu Buttons (Positioned to the right to avoid overlapping)
         self.menu_buttons = [
@@ -110,10 +121,10 @@ class MenuManager:
             )
         ]
         
-        # 4. Demo Tutorial Buttons (Centered at bottom of full-screen tutorial)
+        # 4. Demo Tutorial Buttons (Shifted up to avoid spell bar)
         self.demo_buttons = [
             Button(
-                SCREEN_WIDTH // 2, 635, 220, 45, 
+                SCREEN_WIDTH // 2, 560, 220, 45, 
                 "BACK TO MENU", self.font_button, lambda: self.game.go_to_menu()
             )
         ]
@@ -137,11 +148,11 @@ class MenuManager:
         # 3. Game Over Buttons
         self.gameover_buttons = [
             Button(
-                SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50, 200, 45, 
+                SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 95, 200, 45, 
                 "TRY AGAIN", self.font_button, lambda: self.game.restart_game()
             ),
             Button(
-                SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 115, 200, 45, 
+                SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 160, 200, 45, 
                 "MAIN MENU", self.font_button, lambda: self.game.go_to_menu()
             )
         ]
@@ -214,10 +225,17 @@ class MenuManager:
         title_color = (255, pulse_g, 50) # Shift between orange/gold
         
         title_text = "SPELL MASTER"
-        title_w = self.font_title.size(title_text)[0]
+        title_w, title_h = self.font_title.size(title_text)
         title_x = SCREEN_WIDTH // 2 - title_w // 2
-        title_y = SCREEN_HEIGHT // 4 - 30
         
+        # --- NEW LOGO RENDER CODE ---
+        title_y = SCREEN_HEIGHT // 4 - 30 # Title stays in its normal center position
+        
+        if hasattr(self, 'menu_logo') and self.menu_logo:
+            # Positioned in the Top-Right with 20px of padding
+            logo_x = SCREEN_WIDTH - self.menu_logo.get_width() - 20
+            surface.blit(self.menu_logo, (logo_x, 20))
+            
         # Soft glowing title backdrop ellipse
         glow_surf = pygame.Surface((title_w + 120, 100), pygame.SRCALPHA)
         pygame.draw.ellipse(glow_surf, (120, 80, 220, 30), (60, 20, title_w, 60))
@@ -230,26 +248,29 @@ class MenuManager:
             outline_width=3
         )
         
-        # Subtitle
+        # Subtitle - Positioned dynamically below the Title
         sub_text = "CV Position-Based Magic Duel"
-        sub_w = self.font_subtitle.size(sub_text)[0]
+        sub_w, sub_h = self.font_subtitle.size(sub_text)
+        sub_y = title_y + title_h + 10
         draw_text_with_outline(
             surface, sub_text, self.font_subtitle, 
-            Colors.TEXT_MUTED, Colors.SHADOW, 
-            (SCREEN_WIDTH // 2 - sub_w // 2, SCREEN_HEIGHT // 4 + 45)
+            Colors.TEXT_MUTED, Colors.SHADOW,
+            (SCREEN_WIDTH // 2 - sub_w // 2, sub_y)
         )
         
-        # Draw Spells Guide Panel on main menu
-        self.draw_guide_panel(surface)
+        # Draw Spells Guide Panel - Positioned dynamically below the Subtitle
+        grimoire_y = sub_y + sub_h + 40
+        self.draw_guide_panel(surface, start_y=grimoire_y)
 
         # Draw Buttons
         for btn in self.menu_buttons:
             btn.draw(surface)
-
-    def draw_guide_panel(self, surface):
+            
+    def draw_guide_panel(self, surface, start_y):
         # Draw a beautiful dark glass-like box listing gestures (Single Column Layout)
         panel_w, panel_h = 450, 360
-        panel_rect = pygame.Rect(80, SCREEN_HEIGHT // 2 - 125, panel_w, panel_h)
+        panel_x = 80
+        panel_rect = pygame.Rect(panel_x, start_y, panel_w, panel_h)
         
         # Shadow
         pygame.draw.rect(surface, Colors.SHADOW, panel_rect.move(3, 3), border_radius=8)
@@ -264,16 +285,14 @@ class MenuManager:
             (panel_rect.x + 20, panel_rect.y + 15)
         )
         
-        # 8 Spell lines using Hand Positions stacked vertically
+        # 6 Spell lines using Hand Positions stacked vertically
         spells_info = [
             ("Fireball", "Top-Right Hand", Colors.FIRE),
             ("Frost Chill", "Top-Left Hand", Colors.ICE),
             ("Lightning", "High-Center Hand", Colors.LIGHTNING),
             ("Gale Blast", "Low-Center Hand", Colors.WIND),
             ("Aegis Shield", "Both Hands Up", Colors.SHIELD),
-            ("Earthquake", "Low-Left Hand", Colors.EARTHQUAKE),
-            ("Dark Void", "Low-Right Hand", Colors.SHADOW_SPELL),
-            ("Solar Beam", "Center-Push", Colors.SOLARBEAM)
+            ("Earthquake", "Low-Left Hand", Colors.EARTHQUAKE)
         ]
         
         for idx, (name, symbol, color) in enumerate(spells_info):
@@ -306,99 +325,21 @@ class MenuManager:
         )
 
     def draw_demo_overlay(self, surface):
-        # Full screen Dark grid layout
-        surface.fill(Colors.BACKGROUND)
-        for x in range(0, SCREEN_WIDTH, 40):
-            pygame.draw.line(surface, (28, 24, 40), (x, 0), (x, SCREEN_HEIGHT))
-        for y in range(0, SCREEN_HEIGHT, 40):
-            pygame.draw.line(surface, (28, 24, 40), (0, y), (SCREEN_WIDTH, y))
-
-        # Floating drifts
-        for p in self.bg_particles:
-            alpha = int(30 + 25 * math.sin(p["alpha_phase"]))
-            alpha = max(10, min(100, alpha))
-            sz = int(p["size"])
-            if sz > 0:
-                surf = pygame.Surface((sz * 2, sz * 2), pygame.SRCALPHA)
-                c = p["color"]
-                pygame.draw.circle(surf, (c[0], c[1], c[2], alpha), (sz, sz), sz)
-                surface.blit(surf, (int(p["x"] - sz), int(p["y"] - sz)))
-
-        # Main Tutorial Scroll Box (fits perfectly)
-        panel_w, panel_h = 840, 520
-        panel_rect = pygame.Rect((SCREEN_WIDTH - panel_w) // 2, 50, panel_w, panel_h)
+        # Draw pulsating alert text below the top HUD (No solid background)
+        ticks = pygame.time.get_ticks()
+        # Create a pulsing alpha effect between ~100 and 255
+        alpha = int(175 + 80 * math.sin(ticks * 0.004))
         
-        pygame.draw.rect(surface, Colors.SHADOW, panel_rect.move(3, 3), border_radius=12)
-        pygame.draw.rect(surface, Colors.BUTTON_NORMAL, panel_rect, border_radius=12)
-        pygame.draw.rect(surface, Colors.GOLD, panel_rect, width=1, border_radius=12)
-
-        # Header Title
-        title_text = "DEMO GESTURE & SPELL TUTORIAL"
-        title_w = self.font_subtitle.size(title_text)[0]
-        draw_text_with_outline(
-            surface, title_text, 
-            self.font_subtitle, Colors.GOLD, Colors.SHADOW, 
-            (panel_rect.centerx - title_w // 2, panel_rect.y + 20)
-        )
-
-        # Spells metadata with detailed explanations
-        spells_info = [
-            ("Fireball", "Top-Right Hand", Colors.FIRE, "Passive burn damage over time (1.0s)"),
-            ("Frost Chill", "Top-Left Hand", Colors.ICE, "Freeze closest enemy solid (1.0s)"),
-            ("Lightning", "High-Center Hand", Colors.LIGHTNING, "Chain combo hits up to 3 enemies"),
-            ("Gale Blast", "Low-Center Hand", Colors.WIND, "Blast all screen enemies backward"),
-            ("Aegis Shield", "Both Hands Up", Colors.SHIELD, "Golden shield blocks up to 30 HP"),
-            ("Earthquake", "Low-Left Hand", Colors.EARTHQUAKE, "Deals damage & slows all screen (2s)"),
-            ("Dark Void", "Low-Right Hand", Colors.SHADOW_SPELL, "Strong attack with +10 lifesteal heal"),
-            ("Solar Beam", "Center-Push", Colors.SOLARBEAM, "Wide FOV high-damage piercing laser")
-        ]
-
-        # Draw 2 columns of 4 spells each
-        for idx, (name, symbol, color, desc) in enumerate(spells_info):
-            col = idx // 4
-            row = idx % 4
-            
-            col_x = panel_rect.x + 35 + col * 400
-            y_offset = panel_rect.y + 65 + row * 82
-            
-            # Bullet point indicator
-            pygame.draw.circle(surface, color, (col_x + 8, y_offset + 12), 6)
-            
-            # Title
-            title_str = f"{name} ({symbol})"
-            draw_text_with_outline(
-                surface, title_str, 
-                self.font_medium, color, Colors.SHADOW, 
-                (col_x + 22, y_offset)
-            )
-            
-            # Description
-            draw_text_with_outline(
-                surface, desc, 
-                self.font_hud, Colors.TEXT_MAIN, Colors.SHADOW, 
-                (col_x + 22, y_offset + 25)
-            )
-
-        # Separator line
-        bottom_y = panel_rect.y + 415
-        pygame.draw.line(surface, (50, 45, 70), (panel_rect.x + 30, bottom_y), (panel_rect.right - 30, bottom_y), 1)
+        bot_text = "DEMO MODE: AUTOMATED BOT PLAYING"
+        bot_w = self.font_subtitle.size(bot_text)[0]
         
-        # Start Gesture instruction
-        start_txt = "* START GESTURE: Wave Hand / High Five (or press SPACE key) to Start or Resume Game"
-        start_w = self.font_hud.size(start_txt)[0]
-        draw_text_with_outline(
-            surface, start_txt, 
-            self.font_hud, Colors.GOLD, Colors.SHADOW, 
-            (panel_rect.centerx - start_w // 2, bottom_y + 15)
-        )
+        # Render text with alpha transparency
+        text_surf = self.font_subtitle.render(bot_text, True, Colors.GOLD)
+        text_surf.set_alpha(alpha)
         
-        hint_txt = "Hold poses inside the webcam viewport window to cast corresponding spells."
-        hint_w = self.font_hud.size(hint_txt)[0]
-        draw_text_with_outline(
-            surface, hint_txt, 
-            self.font_hud, Colors.TEXT_MUTED, Colors.SHADOW, 
-            (panel_rect.centerx - hint_w // 2, bottom_y + 42)
-        )
+        # Position it at Y=85, safely below the Wave & Score text
+        text_x = (GAMEPLAY_WIDTH // 2) - (bot_w // 2)
+        surface.blit(text_surf, (text_x, 85))
 
         # Draw Back Button
         for btn in self.demo_buttons:
@@ -475,6 +416,14 @@ class MenuManager:
             Colors.TEXT_MAIN, Colors.SHADOW, 
             (SCREEN_WIDTH // 2 - wave_w // 2, stats_rect.y + 48)
         )
+
+        # Dynamically switch button action and text if game over occurred during demo run
+        if getattr(self.game, 'was_demo', False):
+            self.gameover_buttons[0].text = "RESTART DEMO"
+            self.gameover_buttons[0].action = lambda: self.game.start_demo()
+        else:
+            self.gameover_buttons[0].text = "TRY AGAIN"
+            self.gameover_buttons[0].action = lambda: self.game.restart_game()
 
         # Draw Buttons
         for btn in self.gameover_buttons:

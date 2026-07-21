@@ -11,7 +11,6 @@ from ui.animations import AnimationEffects
 from ui.hud import HUD
 from ui.menus import MenuManager
 from entities.player import Player
-from gesture_utils import get_embedding, calculate_similarity
 
 class Game:
     def __init__(self):
@@ -28,10 +27,10 @@ class Game:
             self.desktop_width = info.current_w
             self.desktop_height = info.current_h
             
-            # Start in native fullscreen
+            # Start in Borderless Windowed (acts like safe fullscreen)
             self.screen = pygame.display.set_mode(
                 (self.desktop_width, self.desktop_height), 
-                pygame.FULLSCREEN | pygame.DOUBLEBUF
+                pygame.NOFRAME | pygame.DOUBLEBUF
             )
         except pygame.error:
             self.is_fullscreen = False
@@ -96,6 +95,7 @@ class Game:
         import math
         import time
         import pygame
+        from gesture_utils import get_embedding, calculate_similarity
         mp_hands = mp.solutions.hands
         mp_draw = mp.solutions.drawing_utils
 
@@ -143,20 +143,21 @@ class Game:
                     mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
                     
                     live_embedding = get_embedding(hand_landmarks.landmark)
-                    if live_embedding:
-                        for name, templates in gestures_db.items():
-                            if isinstance(templates, list):
-                                if len(templates) > 0 and isinstance(templates[0], list):
-                                    for template in templates:
-                                        accuracy = calculate_similarity(live_embedding, template)
-                                        if accuracy > best_accuracy:
-                                            best_accuracy = accuracy
-                                            recognized_gesture = name
-                                else:
-                                    accuracy = calculate_similarity(live_embedding, templates)
-                                    if accuracy > best_accuracy:
-                                        best_accuracy = accuracy
-                                        recognized_gesture = name
+
+                    for name, embeddings_list in gestures_db.items():
+                        # Handle backward compatibility just in case
+                        if len(embeddings_list) > 0 and not isinstance(embeddings_list[0], list):
+                            embeddings_list = [embeddings_list]
+                            
+                        best_variant_accuracy = 0
+                        for saved_embedding in embeddings_list:
+                            accuracy = calculate_similarity(live_embedding, saved_embedding)
+                            if accuracy > best_variant_accuracy:
+                                best_variant_accuracy = accuracy
+                        
+                        if best_variant_accuracy > best_accuracy:
+                            best_accuracy = best_variant_accuracy
+                            recognized_gesture = name
 
                     if best_accuracy >= MATCH_THRESHOLD:
                         self.last_gesture = recognized_gesture
@@ -166,14 +167,12 @@ class Game:
                         # Trigger spell cast
                         spell_map = {
                             "thumb": "start",
-                            "gun": "fire",
+                            "fist": "fire",
                             "peace": "ice",
-                            "spiderman": "lightning",
-                            "palm": "wind",
-                            "fist": "shield",
-                            "lvibe": "earthquake",
-                            "one": "fire",
-                            "sone": "start"
+                            "lvibe": "lightning",
+                            "threefinger": "wind",
+                            "palm": "shield",
+                            "spiderman": "earthquake"
                         }
                         mapped_spell = spell_map.get(recognized_gesture.lower().strip())
                         if mapped_spell:
@@ -186,7 +185,7 @@ class Game:
             try:
                 raw_surface = pygame.image.frombuffer(rgb_frame_for_pygame.tobytes(), (w, h), "RGB")
                 # Scale to fit 300x225
-                scaled_surface = pygame.transform.scale(raw_surface, (300, 225))
+                scaled_surface = pygame.transform.scale(raw_surface, (316, 237))
                 self.cv_frame = scaled_surface
             except Exception as e:
                 pass
@@ -202,7 +201,7 @@ class Game:
                 info = pygame.display.Info()
                 self.screen = pygame.display.set_mode(
                     (info.current_w, info.current_h), 
-                    pygame.FULLSCREEN | pygame.DOUBLEBUF
+                    pygame.NOFRAME | pygame.DOUBLEBUF
                 )
             except pygame.error:
                 self.is_fullscreen = False
@@ -241,9 +240,13 @@ class Game:
     def start_game(self):
         self.reset_game()
         self.state = GameState.PLAYING
+        self.was_demo = False
 
     def start_demo(self):
+        self.reset_game() # Clear previous arena state
         self.state = GameState.DEMO_MODE
+        self.demo_bot_timer = 0 # Track intervals for bot attacks
+        self.was_demo = True # Automated bot run
 
     def resume_game(self):
         self.state = GameState.PLAYING
@@ -364,9 +367,20 @@ class Game:
             self.player.update(dt)
             self.spell_manager.update(dt)  # Updates spell cooldown timers
             self.enemy_manager.update(dt, self.player, self.animation_effects)
+            self.wave_manager.update(dt, self.player, self.animation_effects) # Enabled waves for bot demo
             
-            if self.state == GameState.PLAYING:
-                self.wave_manager.update(dt, self.player, self.animation_effects)
+            # Automated bot behavior script
+            if self.state == GameState.DEMO_MODE:
+                if not hasattr(self, 'demo_bot_timer'):
+                    self.demo_bot_timer = 0
+                self.demo_bot_timer += dt
+                
+                # Bot spams a random spell roughly once every second (60 frames)
+                if self.demo_bot_timer >= 60:
+                    self.demo_bot_timer = 0
+                    import random
+                    spells_list = ["fire", "ice", "lightning", "wind", "shield", "earthquake", "shadow", "solarbeam"]
+                    self.cast_spell(random.choice(spells_list))
             
             # Update projectiles
             for proj in self.projectiles[:]:
@@ -387,6 +401,7 @@ class Game:
             # Check for GameOver (Wizard HP <= 0)
             if self.player.hp <= 0:
                 self.state = GameState.GAME_OVER
+    
 
     def draw(self):
         # Calculate screen shake offset

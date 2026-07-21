@@ -46,8 +46,8 @@ class Colors:
 # Screen dimensions and UI layouts
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-GAMEPLAY_WIDTH = 960
-SIDEBAR_WIDTH = 320
+GAMEPLAY_WIDTH = 920
+SIDEBAR_WIDTH = 360
 FPS = 60
 
 # Wizard positioning and stats
@@ -66,7 +66,7 @@ ENEMY_TYPES = {
         "speed": 2.2,
         "damage": 5,          # Reduced from 10
         "color": (90, 180, 80),
-        "size": (30, 35),
+        "size": (100, 100),
         "score_val": 10
     },
     "skeleton": {
@@ -75,7 +75,7 @@ ENEMY_TYPES = {
         "speed": 1.4,
         "damage": 8,          # Reduced from 15
         "color": (210, 210, 200),
-        "size": (32, 45),
+        "size": (100, 100),
         "score_val": 20
     },
     "orc": {
@@ -84,7 +84,7 @@ ENEMY_TYPES = {
         "speed": 0.8,
         "damage": 12,         # Reduced from 25
         "color": (150, 75, 40),
-        "size": (45, 55),
+        "size": (120, 120),
         "score_val": 40
     }
 }
@@ -94,8 +94,8 @@ SPELLS = {
     "fire": {
         "name": "Fireball",
         "damage": 2,
-        "cooldown": 1.0, # 1.0s cooldown
-        "description": "Ignite & burn closest (1s)",
+        "cooldown": 1.5, # Increased by 2 seconds
+        "description": "Ignite & burn closest (0.2s)",
         "color": Colors.FIRE,
         "symbol": "Top-Right Hand",
         "key": "1"
@@ -103,18 +103,18 @@ SPELLS = {
     "ice": {
         "name": "Frost Chill",
         "damage": 1,
-        "cooldown": 1.0, # 1.0s cooldown
-        "freeze_duration": 1.0, # 1.0s freeze
+        "cooldown": 1.2, 
+        "freeze_duration": 3.0, 
         "freeze_slow_factor": 0.0,
-        "description": "Freeze closest enemy (1s)",
+        "description": "Freeze closest enemy (3s)",
         "color": Colors.ICE,
         "symbol": "Top-Left Hand",
         "key": "2"
     },
     "lightning": {
         "name": "Lightning",
-        "damage": 3,
-        "cooldown": 3.0, # 3.0s cooldown combo
+        "damage": 4,
+        "cooldown": 7, 
         "description": "Chain lightning combo strike",
         "color": Colors.LIGHTNING,
         "symbol": "High-Center Hand",
@@ -123,7 +123,7 @@ SPELLS = {
     "wind": {
         "name": "Gale Blast",
         "damage": 0,
-        "cooldown": 5.0, # 5.0s cooldown
+        "cooldown": 6, 
         "pushback": 180,
         "description": "Blast all screen enemies back",
         "color": Colors.WIND,
@@ -133,8 +133,8 @@ SPELLS = {
     "shield": {
         "name": "Aegis Shield",
         "damage": 0,
-        "cooldown": 7.0, # 7.0s cooldown
-        "duration": 4.0,
+        "cooldown": 5, 
+        "duration": 10.0,
         "description": "Absorb damage barrier (30 HP)",
         "color": Colors.SHIELD,
         "symbol": "Both Hands Up",
@@ -142,30 +142,11 @@ SPELLS = {
     },
     "earthquake": {
         "name": "Earthquake",
-        "damage": 1,
-        "cooldown": 10.0, # 10.0s cooldown
+        "damage": 2,
+        "cooldown": 20, 
         "description": "DMG & slow all screen (2s)",
         "color": Colors.EARTHQUAKE,
         "symbol": "Low-Left Hand",
         "key": "6"
-    },
-    "shadow": {
-        "name": "Dark Void",
-        "damage": 5, # strong attack (5 damage!)
-        "cooldown": 5.0, # 5.0s cooldown
-        "lifesteal": 10,
-        "description": "High damage & lifesteal (+10 HP)",
-        "color": Colors.SHADOW_SPELL,
-        "symbol": "Low-Right Hand",
-        "key": "7"
-    },
-    "solarbeam": {
-        "name": "Solar Beam",
-        "damage": 3,
-        "cooldown": 7.0, # 7.0s cooldown
-        "description": "Massive wide piercing laser",
-        "color": Colors.SOLARBEAM,
-        "symbol": "Center-Push",
-        "key": "8"
     }
 }

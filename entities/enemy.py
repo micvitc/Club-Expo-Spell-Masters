@@ -119,8 +119,13 @@ class Enemy:
         if self.is_frozen:
             temp_sprite = self.sprite.copy()
             overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            overlay.fill((100, 180, 255, 100)) # Transparent blue
+            alpha = 70 + int(30 * math.sin(pygame.time.get_ticks() * 0.01))
+            overlay.fill((100, 180, 255, alpha))# Transparent blue
             temp_sprite.blit(overlay, (0, 0))
+            # Ice crack lines
+            pygame.draw.line(temp_sprite, (240, 250, 255), (6, 6), (self.width - 8, self.height - 8), 1)
+            pygame.draw.line(temp_sprite, (220, 240, 255), (self.width - 10, 8), (10, self.height - 12), 1)
+            pygame.draw.line(temp_sprite, (230, 245, 255), (self.width // 2, 0), (self.width // 2 - 5, self.height), 1)
             
             # Draw tiny ice shards around them
             # (Done on the fly or drawn directly)
@@ -145,7 +150,46 @@ class Enemy:
             glow_surf = pygame.Surface((self.width + 12, self.height + 12), pygame.SRCALPHA)
             pygame.draw.rect(glow_surf, (80, 180, 240, 60), (0, 0, self.width + 12, self.height + 12), border_radius=6)
             surface.blit(glow_surf, (hitbox.x - 6, hitbox.y - 6 - int(bounce)))
+                # Ice crystals around the enemy
+            crystal_color = (200, 245, 255)
 
+            crystals = [
+                (hitbox.centerx, hitbox.y - 8),            # top
+                (hitbox.x - 6, hitbox.centery),            # left
+                (hitbox.right + 6, hitbox.centery),        # right
+                (hitbox.x + 8, hitbox.bottom + 4),         # bottom left
+                (hitbox.right - 8, hitbox.bottom + 4)      # bottom right
+            ]
+
+            for cx, cy in crystals:
+                pygame.draw.polygon(surface, crystal_color, [
+                    (cx, cy - 6),
+                    (cx - 4, cy + 3),
+                    (cx + 4, cy + 3)
+                ])
+                # Falling snow particles
+            for i in range(8):
+                offset = (pygame.time.get_ticks() / 12 + i * 18) % (self.height + 20)
+
+                x = hitbox.x + 5 + (i * 11) % self.width
+                y = hitbox.y - 10 + offset - int(bounce)
+
+                pygame.draw.circle(surface, (235, 250, 255), (int(x), int(y)), 2)
+                # Cold mist around frozen enemy
+            mist_color = (180, 230, 255, 40)
+
+            mist = pygame.Surface((self.width + 20, self.height + 20), pygame.SRCALPHA)
+
+            pygame.draw.ellipse(
+                mist,
+                mist_color,
+                (0, 4, self.width + 20, self.height // 2)
+            )
+
+            surface.blit(
+                mist,
+                (hitbox.x - 10, hitbox.y + self.height // 3 - int(bounce))
+            )
         # If burning, draw fire embers floating up
         if self.burn_timer > 0:
             ticks = pygame.time.get_ticks()
@@ -157,11 +201,27 @@ class Enemy:
                 pygame.draw.circle(surface, (255, 80 + int(120 * phase), 30), (int(spark_x), int(spark_y)), spark_r)
 
         # Draw mini HP bar for damaged enemies
+        # Draw mini HP bar for damaged enemies
         if self.hp < self.max_hp and self.hp > 0:
-            bar_width = self.width
-            bar_height = 5
+            bar_width = int(self.width * 1.2)   # 20% wider than the enemy
+            bar_height = 7                       # Thicker
             bar_x = hitbox.centerx - bar_width // 2
-            bar_y = hitbox.y - 12 - int(bounce)
+            bar_y = hitbox.y - 16 - int(bounce)  # Slightly higher
+
+            pygame.draw.rect(
+                surface,
+                Colors.HP_BAR_EMPTY,
+                (bar_x, bar_y, bar_width, bar_height),
+                border_radius=3
+            )
+
+            fill_width = int(bar_width * (self.hp / self.max_hp))
+            pygame.draw.rect(
+                surface,
+                Colors.HP_BAR_FILL,
+                (bar_x, bar_y, fill_width, bar_height),
+                border_radius=3
+            )
             
             # Background
             pygame.draw.rect(surface, Colors.HP_BAR_EMPTY, (bar_x, bar_y, bar_width, bar_height), border_radius=2)

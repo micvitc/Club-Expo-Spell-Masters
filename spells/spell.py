@@ -89,7 +89,7 @@ class FireSpell(Spell):
         animation_effects.trigger_flash(0.1, (255, 120, 60))
         
         # Play cast sound
-        player.asset_manager.get_sound("fire.wav").play()
+        player.asset_manager.get_sound("fireball.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -149,7 +149,7 @@ class IceSpell(Spell):
             size_range=(2, 5)
         )
         
-        player.asset_manager.get_sound("ice.wav").play()
+        player.asset_manager.get_sound("frost.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -262,7 +262,7 @@ class LightningSpell(Spell):
                 is_damage=False
             )
         
-        player.asset_manager.get_sound("lightning.wav").play()
+        player.asset_manager.get_sound("lightning.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -318,7 +318,7 @@ class WindSpell(Spell):
         # Soft green screen flash
         animation_effects.trigger_flash(0.08, (150, 240, 180))
         
-        player.asset_manager.get_sound("wind.wav").play()
+        player.asset_manager.get_sound("blast.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -348,7 +348,7 @@ class ShieldSpell(Spell):
             is_damage=False
         )
         
-        player.asset_manager.get_sound("shield.wav").play()
+        player.asset_manager.get_sound("shield.mp3").play()
         self.trigger_cooldown()
         return True
 
@@ -362,7 +362,7 @@ class EarthquakeSpell(Spell):
         animation_effects.trigger_shake(duration=0.6, intensity=12.0)
         animation_effects.trigger_flash(0.12, (180, 110, 60))
         
-        player.asset_manager.get_sound("earthquake.wav").play()
+        player.asset_manager.get_sound("earthquake.mp3").play()
         
         if enemies:
             alive_enemies = [e for e in enemies if hasattr(e, 'hp') and e.hp > 0]
@@ -407,134 +407,5 @@ class EarthquakeSpell(Spell):
             is_damage=False
         )
         
-        self.trigger_cooldown()
-        return True
-
-
-class ShadowSpell(Spell):
-    def __init__(self):
-        super().__init__("shadow")
-        self.lifesteal = SPELLS["shadow"]["lifesteal"]
-
-    def cast(self, player, target, projectiles, animation_effects, enemies=None):
-        if not target:
-            animation_effects.add_floating_text("No Target!", player.x, player.y - 40, Colors.TEXT_MUTED, player.asset_manager.get_font(None, 24), is_damage=False)
-            return False
-
-        # Shoots a shadow lifesteal projectile
-        proj = Projectile(
-            x=player.x,
-            y=player.y,
-            target=target,
-            spell_type="shadow",
-            damage=self.damage,
-            speed=10.0,
-            color=Colors.SHADOW_SPELL,
-            player=player,
-            animation_effects=animation_effects
-        )
-        projectiles.append(proj)
-        
-        # Casting particles
-        animation_effects.add_particle_burst(
-            player.x, player.y, 
-            Colors.PARTICLE_SHADOW, 
-            count=10, 
-            speed_range=(1.0, 3.0), 
-            size_range=(3, 6)
-        )
-        
-        player.asset_manager.get_sound("shadow_cast.wav").play()
-        self.trigger_cooldown()
-        return True
-
-
-class SolarBeamSpell(Spell):
-    def __init__(self):
-        super().__init__("solarbeam")
-
-    def cast(self, player, target, projectiles, animation_effects, enemies=None):
-        if not target:
-            animation_effects.add_floating_text("No Target!", player.x, player.y - 40, Colors.TEXT_MUTED, player.asset_manager.get_font(None, 24), is_damage=False)
-            return False
-
-        # Calculate vector towards target
-        target_hitbox = target.get_hitbox()
-        tx, ty = target_hitbox.centerx, target_hitbox.centery
-        dx = tx - player.x
-        dy = ty - player.y
-        dist = math.hypot(dx, dy)
-        
-        if dist > 0:
-            ux, uy = dx / dist, dy / dist
-        else:
-            ux, uy = 1.0, 0.0
-
-        # Project beam start and end coordinates
-        start_pos = (player.x, player.y)
-        end_pos = (player.x + ux * 1000, player.y + uy * 1000)
-        
-        # Damage all enemies intersecting with the beam (increased FOV to 45.0)
-        beam_half_width = 45.0
-        
-        def point_to_segment_distance(px, py, ax, ay, bx, by):
-            ab_x = bx - ax
-            ab_y = by - ay
-            ap_x = px - ax
-            ap_y = py - ay
-            ab_len_sq = ab_x**2 + ab_y**2
-            if ab_len_sq == 0:
-                return math.hypot(ap_x, ap_y)
-            t = max(0.0, min(1.0, (ap_x * ab_x + ap_y * ab_y) / ab_len_sq))
-            proj_x = ax + t * ab_x
-            proj_y = ay + t * ab_y
-            return math.hypot(px - proj_x, py - proj_y)
-
-        if enemies:
-            alive_enemies = [e for e in enemies if hasattr(e, 'hp') and e.hp > 0]
-            for enemy in alive_enemies:
-                eh = enemy.get_hitbox()
-                # Compute distance from enemy center to beam line segment
-                d = point_to_segment_distance(eh.centerx, eh.centery, start_pos[0], start_pos[1], end_pos[0], end_pos[1])
-                
-                # Check collision (using enemy width as radius representation)
-                if d <= (enemy.width / 2.0 + beam_half_width):
-                    enemy.take_damage(self.damage)
-                    
-                    # Sparkles at intersection point
-                    animation_effects.add_particle_burst(
-                        eh.centerx, eh.centery, 
-                        Colors.PARTICLE_SOLARBEAM, 
-                        count=6, 
-                        speed_range=(1.5, 4.0), 
-                        size_range=(2, 5)
-                    )
-                    
-                    animation_effects.add_floating_text(
-                        f"-{self.damage} HP", 
-                        eh.centerx, eh.y - 15, 
-                        Colors.GOLD, 
-                        player.asset_manager.get_font(None, 24)
-                    )
-
-        # Spawn SolarBeamEffect visual particle
-        from spells.effects import SolarBeamEffect
-        beam_effect = SolarBeamEffect(start_pos, end_pos)
-        animation_effects.particles.append(beam_effect)
-        
-        # Heavy shake and bright yellow flash
-        animation_effects.trigger_shake(0.4, 9.0)
-        animation_effects.trigger_flash(0.2, (255, 235, 170))
-        
-        # Floating text above player
-        animation_effects.add_floating_text(
-            "SOLAR BEAM!", 
-            player.x - 40, player.y - 45, 
-            Colors.SOLARBEAM, 
-            player.asset_manager.get_font(None, 24),
-            is_damage=False
-        )
-        
-        player.asset_manager.get_sound("solarbeam.wav").play()
         self.trigger_cooldown()
         return True
