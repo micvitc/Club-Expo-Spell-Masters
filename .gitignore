@@ -7,9 +7,10 @@ __pycache__/
 venv/
 ENV/
 env/
-.env
 .venv
 
 # Operating System files
 .DS_Store
 Thumbs.db
+config.bat
+node_modules
