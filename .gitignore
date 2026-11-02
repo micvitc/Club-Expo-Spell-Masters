@@ -12,5 +12,5 @@ env/
 # Operating System files
 .DS_Store
 Thumbs.db
-config.bat
 node_modules
+config.bat
